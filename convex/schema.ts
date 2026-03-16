@@ -14,6 +14,7 @@ export default defineSchema({
   userPreferences: defineTable({
     userId: v.id("users"),
     defaultWorkspaceSlug: v.optional(v.string()),
+    defaultLandingPage: v.optional(v.string()),
     emailInvites: v.boolean(),
     productUpdates: v.boolean(),
     publishAlerts: v.boolean(),
