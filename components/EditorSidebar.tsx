@@ -91,6 +91,7 @@ export function EditorSidebar() {
     workspaceSlug,
     isEditing,
     postSlug,
+    originalMetadata,
     originalContent,
     setOriginalMetadata,
     setOriginalContent,
@@ -104,9 +105,13 @@ export function EditorSidebar() {
   const draftKey = postSlug || NEW_POST_DRAFT_KEY;
   const saveDraftMutation = useSaveEditorDraft(workspaceSlug, draftKey);
   const clearDraftMutation = useClearEditorDraft(workspaceSlug, draftKey);
-  const { data: autosavePreference } = useEditorAutosavePreference();
+  const {
+    data: autosavePreference,
+    isLoading: isAutosavePreferenceLoading,
+  } = useEditorAutosavePreference();
   const setAutosavePreferenceMutation = useSetEditorAutosavePreference();
   const router = useRouter();
+  const canUseAutosave = Boolean(postSlug);
 
   const defaultValues = useMemo<PostMetadataFormData>(
     () => ({
@@ -171,8 +176,12 @@ export function EditorSidebar() {
   }, [postSlug]);
 
   useEffect(() => {
+    if (isAutosavePreferenceLoading) {
+      return;
+    }
+
     setIsAutosaveEnabled(autosavePreference);
-  }, [autosavePreference]);
+  }, [autosavePreference, isAutosavePreferenceLoading]);
 
   const buildMetadataSnapshot = useCallback(
     (values: PostMetadataFormData): PostMetadata => ({
@@ -188,6 +197,41 @@ export function EditorSidebar() {
     [],
   );
 
+  const buildFormValues = useCallback(
+    (source: PostMetadata): PostMetadataFormData => ({
+      title: source.title || '',
+      slug: source.slug || '',
+      excerpt: source.excerpt || '',
+      authorId: source.authorId,
+      categorySlug: source.categorySlug,
+      tagSlugs: source.tagSlugs || [],
+      publishedAt: source.publishedAt || new Date(),
+      status: source.status || 'draft',
+    }),
+    [],
+  );
+
+  const areMetadataSnapshotsEqual = useCallback(
+    (left: PostMetadata, right: PostMetadata) => {
+      if (left.title.trim() !== right.title.trim()) return false;
+      if (left.slug.trim() !== right.slug.trim()) return false;
+      if (left.excerpt.trim() !== right.excerpt.trim()) return false;
+      if ((left.authorId ?? null) !== (right.authorId ?? null)) return false;
+      if ((left.categorySlug ?? null) !== (right.categorySlug ?? null)) {
+        return false;
+      }
+      if (left.status !== right.status) return false;
+
+      const leftPublishedAt = left.publishedAt?.getTime() ?? null;
+      const rightPublishedAt = right.publishedAt?.getTime() ?? null;
+      if (leftPublishedAt !== rightPublishedAt) return false;
+
+      if (left.tagSlugs.length !== right.tagSlugs.length) return false;
+      return JSON.stringify(left.tagSlugs) === JSON.stringify(right.tagSlugs);
+    },
+    [],
+  );
+
   const syncToParent = useCallback(() => {
     isSyncingRef.current = true;
     const values = getValues();
@@ -199,47 +243,36 @@ export function EditorSidebar() {
 
   useEffect(() => {
     if (isSyncingRef.current) return;
-    reset(defaultValues);
+    const nextValues = buildFormValues(metadata);
+    const currentValues = buildMetadataSnapshot(getValues());
+    const nextMetadata = buildMetadataSnapshot(nextValues);
+
+    if (areMetadataSnapshotsEqual(currentValues, nextMetadata)) {
+      return;
+    }
+
+    reset(nextValues);
     slugManuallyEditedRef.current = false;
-  }, [defaultValues, reset]);
+  }, [
+    areMetadataSnapshotsEqual,
+    buildFormValues,
+    buildMetadataSnapshot,
+    getValues,
+    metadata,
+    reset,
+  ]);
 
   const metadataChanged = useMemo(() => {
-    const defaults = form.formState.defaultValues || defaultValues;
-
-    return (Object.keys(allValues) as Array<keyof PostMetadataFormData>).some(
-      (key) => {
-        const v1 = allValues[key];
-        const v2 = defaults[key];
-
-        if (v1 === v2) return false;
-
-        // Handle undefined/null
-        if (
-          (v1 === undefined || v1 === null) &&
-          (v2 === undefined || v2 === null)
-        )
-          return false;
-
-        // String comparison with trim
-        if (typeof v1 === 'string' && typeof v2 === 'string') {
-          return v1.trim() !== v2.trim();
-        }
-
-        // Date comparison
-        if (v1 instanceof Date && v2 instanceof Date) {
-          return v1.getTime() !== v2.getTime();
-        }
-
-        // Array comparison (for tags)
-        if (Array.isArray(v1) && Array.isArray(v2)) {
-          if (v1.length !== v2.length) return true;
-          return JSON.stringify(v1) !== JSON.stringify(v2);
-        }
-
-        return v1 !== v2;
-      },
-    );
-  }, [allValues, form.formState.defaultValues, defaultValues]);
+    const baseline = originalMetadata ?? buildMetadataSnapshot(defaultValues);
+    const currentValues = buildMetadataSnapshot(allValues);
+    return !areMetadataSnapshotsEqual(currentValues, baseline);
+  }, [
+    allValues,
+    areMetadataSnapshotsEqual,
+    buildMetadataSnapshot,
+    defaultValues,
+    originalMetadata,
+  ]);
 
   useEffect(() => {
     if (isEditing || !titleValue || slugManuallyEditedRef.current) return;
@@ -272,32 +305,13 @@ export function EditorSidebar() {
       }
     };
 
-    initialContentRef.current = sanitizeSnapshot(originalContent);
-
-    let hasCapturedBaseline = false;
-
-    if (initialContentRef.current === null) {
-      initialContentRef.current = JSON.stringify(editor.getJSON());
-      hasCapturedBaseline = true;
-    }
+    initialContentRef.current =
+      sanitizeSnapshot(originalContent) ?? JSON.stringify(editor.getJSON());
 
     setHasContentChanged(false);
 
     const handleUpdate = () => {
       const snapshot = JSON.stringify(editor.getJSON());
-
-      if (!hasCapturedBaseline) {
-        if (
-          initialContentRef.current === null ||
-          snapshot !== initialContentRef.current
-        ) {
-          initialContentRef.current = snapshot;
-        }
-        hasCapturedBaseline = true;
-        setHasContentChanged(false);
-        return;
-      }
-
       setHasContentChanged(snapshot !== initialContentRef.current);
     };
 
@@ -442,7 +456,7 @@ export function EditorSidebar() {
   );
 
   const runAutosave = useCallback(async () => {
-    if (!isAutosaveEnabled || isAutosavingRef.current) {
+    if (!canUseAutosave || !isAutosaveEnabled || isAutosavingRef.current) {
       return;
     }
 
@@ -517,6 +531,7 @@ export function EditorSidebar() {
     }
   }, [
     applySavedBaseline,
+    canUseAutosave,
     clearCurrentDraft,
     createPostMutation,
     isAutosaveEnabled,
@@ -657,7 +672,7 @@ export function EditorSidebar() {
   // Register save handler and unsaved-changes checker on context refs for Ctrl+S and back-button
   useEffect(() => {
     saveRef.current = () => {
-      if (isAutosaveEnabled) {
+      if (canUseAutosave && isAutosaveEnabled) {
         clearAutosaveTimer();
         void runAutosave();
         return;
@@ -672,6 +687,7 @@ export function EditorSidebar() {
     };
   }, [
     clearAutosaveTimer,
+    canUseAutosave,
     clearCurrentDraft,
     clearDraftSaveTimer,
     handleSave,
@@ -698,7 +714,9 @@ export function EditorSidebar() {
   );
 
   useEffect(() => {
-    if (isAutosaveEnabled || !hasChanges) {
+    const shouldSaveDraft = !canUseAutosave || !isAutosaveEnabled;
+
+    if (!shouldSaveDraft || !hasChanges) {
       clearDraftSaveTimer();
       return;
     }
@@ -732,6 +750,7 @@ export function EditorSidebar() {
   }, [
     allValues,
     buildMetadataSnapshot,
+    canUseAutosave,
     clearDraftSaveTimer,
     editorHtml,
     editorRef,
@@ -742,7 +761,7 @@ export function EditorSidebar() {
   ]);
 
   useEffect(() => {
-    if (!isAutosaveEnabled) {
+    if (!canUseAutosave || !isAutosaveEnabled) {
       clearAutosaveTimer();
       setAutosaveState('idle');
       setAutosaveError(null);
@@ -772,6 +791,7 @@ export function EditorSidebar() {
     };
   }, [
     autosaveSignature,
+    canUseAutosave,
     clearAutosaveTimer,
     hasChanges,
     isAutosaveEnabled,
@@ -1185,20 +1205,22 @@ export function EditorSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className='border-t border-foreground/10 px-4 py-3'>
-          <div className='flex items-center justify-between gap-3'>
-            <div className='min-w-0'>
-              <p className='text-sm font-medium'>Autosave</p>
-              <p className='text-xs text-muted-foreground'>
-                Save changes to Convex automatically while you edit
-              </p>
+          {canUseAutosave ? (
+            <div className='flex items-center justify-between gap-3'>
+              <div className='min-w-0'>
+                <p className='text-sm font-medium'>Autosave</p>
+                <p className='text-xs text-muted-foreground'>
+                  Save changes to Convex automatically while you edit
+                </p>
+              </div>
+              <Switch
+                checked={isAutosaveEnabled}
+                onCheckedChange={handleAutosaveToggle}
+              />
             </div>
-            <Switch
-              checked={isAutosaveEnabled}
-              onCheckedChange={handleAutosaveToggle}
-            />
-          </div>
+          ) : null}
 
-          {isAutosaveEnabled ? (
+          {canUseAutosave && isAutosaveEnabled ? (
             <div className='pt-3 text-xs text-muted-foreground'>
               {autosaveState === 'saving' ? (
                 <div className='flex items-center gap-2'>

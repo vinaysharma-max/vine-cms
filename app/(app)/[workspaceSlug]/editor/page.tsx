@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorFallback } from '@/components/ErrorFallback';
 import { Tiptap } from '@/components/editor/Tiptap';
@@ -36,8 +36,15 @@ export default function EditorPage() {
     workspaceSlug,
     NEW_POST_DRAFT_KEY,
   );
+  const hasHydratedDraftRef = useRef(false);
 
   useEffect(() => {
+    if (isDraftLoading || hasHydratedDraftRef.current) {
+      return;
+    }
+
+    hasHydratedDraftRef.current = true;
+
     if (!draft) {
       return;
     }
@@ -60,7 +67,13 @@ export default function EditorPage() {
     setOriginalContent(
       draft.contentJson ? JSON.stringify(draft.contentJson) : null,
     );
-  }, [draft, setMetadata, setOriginalContent, setOriginalMetadata]);
+  }, [
+    draft,
+    isDraftLoading,
+    setMetadata,
+    setOriginalContent,
+    setOriginalMetadata,
+  ]);
 
   // Warn before browser-level navigation (refresh, close tab) if there are unsaved changes
   useEffect(() => {

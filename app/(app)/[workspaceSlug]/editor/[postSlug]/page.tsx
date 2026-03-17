@@ -1,7 +1,7 @@
 'use client';
 
 import { ErrorBoundary } from 'react-error-boundary';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ErrorFallback } from '@/components/ErrorFallback';
 import { Tiptap } from '@/components/editor/Tiptap';
@@ -45,6 +45,7 @@ export default function EditPostPage() {
 
   const [showWarningDialog, setShowWarningDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
+  const hasHydratedSourceRef = useRef(false);
 
   const { data: post, isLoading: isLoadingPost } = usePost(workspaceSlug || '', postSlug || '');
   const { data: draft, isLoading: isLoadingDraft } = useEditorDraft(
@@ -57,6 +58,10 @@ export default function EditPostPage() {
   }, [shouldSkipBlockerRef]);
 
   useEffect(() => {
+    if (isLoadingPost || isLoadingDraft || hasHydratedSourceRef.current) {
+      return;
+    }
+
     const source = draft
       ? {
           title: draft.metadata.title,
@@ -79,6 +84,8 @@ export default function EditPostPage() {
       return;
     }
 
+    hasHydratedSourceRef.current = true;
+
     const postMetadata: PostMetadata = {
       title: source.title,
       slug: source.slug,
@@ -96,7 +103,15 @@ export default function EditPostPage() {
     setMetadata(postMetadata);
     setOriginalMetadata(postMetadata);
     setOriginalContent(serializedContent);
-  }, [draft, post, setMetadata, setOriginalMetadata, setOriginalContent]);
+  }, [
+    draft,
+    isLoadingDraft,
+    isLoadingPost,
+    post,
+    setMetadata,
+    setOriginalContent,
+    setOriginalMetadata,
+  ]);
 
   const hasUnsavedChanges = useCallback(
     () => hasUnsavedChangesRef.current?.() ?? false,
