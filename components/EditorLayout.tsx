@@ -35,6 +35,7 @@ const EDITOR_SIDEBAR_COOKIE_NAME = 'editor_sidebar_state';
 const getInitialMetadata = (): PostMetadata => ({
   title: '',
   slug: '',
+  thumbnailMediaId: null,
   authorId: undefined,
   publishedAt: new Date(),
   excerpt: '',

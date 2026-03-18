@@ -17,11 +17,19 @@ async function ensureValidRelations(
   ctx: any,
   workspaceId: string,
   data: {
+    thumbnailMediaId?: string | null;
     authorId?: string;
     categorySlug?: string;
     tagSlugs?: string[];
   },
 ) {
+  if (data.thumbnailMediaId) {
+    const media = await ctx.db.get(data.thumbnailMediaId);
+    if (!media || media.workspaceId !== workspaceId) {
+      throw new Error('Selected thumbnail does not belong to this workspace');
+    }
+  }
+
   if (data.authorId) {
     const author = await ctx.db.get(data.authorId);
     if (!author || author.workspaceId !== workspaceId) {
@@ -57,8 +65,32 @@ async function ensureValidRelations(
   }
 }
 
+async function hydrateThumbnail(ctx: any, thumbnailMediaId?: string | null) {
+  if (!thumbnailMediaId) {
+    return null;
+  }
+
+  const media = await ctx.db.get(thumbnailMediaId);
+  if (!media) {
+    return null;
+  }
+
+  const url = await ctx.storage.getUrl(media.storageId);
+  if (!url) {
+    return null;
+  }
+
+  return {
+    id: media._id,
+    url,
+    filename: media.filename,
+    thumbhashBase64: media.thumbhashBase64 ?? null,
+    aspectRatio: media.aspectRatio ?? null,
+  };
+}
+
 async function hydratePost(ctx: any, post: any) {
-  const [author, creator, category, body, postTags] = await Promise.all([
+  const [author, creator, category, body, postTags, thumbnail] = await Promise.all([
     post.authorId ? ctx.db.get(post.authorId) : Promise.resolve(null),
     ctx.db.get(post.createdByUserId),
     post.categorySlug
@@ -77,6 +109,7 @@ async function hydratePost(ctx: any, post: any) {
       .query('postTags')
       .withIndex('by_post_id', (q: any) => q.eq('postId', post._id))
       .collect(),
+    hydrateThumbnail(ctx, post.thumbnailMediaId),
   ]);
 
   const tags = await Promise.all(
@@ -103,6 +136,7 @@ async function hydratePost(ctx: any, post: any) {
     title: post.title,
     slug: post.slug,
     excerpt: post.excerpt,
+    thumbnail,
     status: post.status,
     createdAt: new Date(post.createdAt).toISOString(),
     updatedAt: new Date(post.updatedAt).toISOString(),
@@ -171,6 +205,7 @@ export const create = mutation({
       title: v.string(),
       slug: v.string(),
       excerpt: v.string(),
+      thumbnailMediaId: v.optional(v.union(v.id('media'), v.null())),
       authorId: v.optional(v.id('authors')),
       categorySlug: v.optional(v.string()),
       tagSlugs: v.array(v.string()),
@@ -197,6 +232,7 @@ export const create = mutation({
       title: args.data.title.trim(),
       slug: args.data.slug.trim(),
       excerpt: args.data.excerpt.trim(),
+      thumbnailMediaId: args.data.thumbnailMediaId ?? null,
       categorySlug: args.data.categorySlug?.trim() || undefined,
       status: args.data.status,
       createdAt: now,
@@ -235,6 +271,7 @@ export const update = mutation({
       title: v.optional(v.string()),
       slug: v.optional(v.string()),
       excerpt: v.optional(v.string()),
+      thumbnailMediaId: v.optional(v.union(v.id('media'), v.null())),
       authorId: v.optional(v.id('authors')),
       categorySlug: v.optional(v.string()),
       tagSlugs: v.optional(v.array(v.string())),
@@ -266,6 +303,9 @@ export const update = mutation({
       ...(args.data.title !== undefined ? { title: args.data.title.trim() } : {}),
       ...(nextSlug !== undefined ? { slug: nextSlug } : {}),
       ...(args.data.excerpt !== undefined ? { excerpt: args.data.excerpt.trim() } : {}),
+      ...(args.data.thumbnailMediaId !== undefined
+        ? { thumbnailMediaId: args.data.thumbnailMediaId ?? null }
+        : {}),
       ...(args.data.authorId !== undefined ? { authorId: args.data.authorId } : {}),
       ...(args.data.categorySlug !== undefined
         ? { categorySlug: args.data.categorySlug?.trim() || undefined }

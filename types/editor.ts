@@ -4,6 +4,7 @@ export interface PostMetadata {
   authorId?: string;
   publishedAt: Date;
   excerpt: string;
+  thumbnailMediaId?: string | null;
   categorySlug?: string;
   tagSlugs: string[];
   status: 'draft' | 'published';

@@ -42,7 +42,7 @@ async function getPublicPostBySlug(ctx: any, workspaceId: string, postSlug: stri
 }
 
 async function getPublicPostListItem(ctx: any, post: any) {
-  const [author, category, postTags, body] = await Promise.all([
+  const [author, category, postTags, body, thumbnail] = await Promise.all([
     post.authorId ? ctx.db.get(post.authorId) : Promise.resolve(null),
     post.categorySlug
       ? ctx.db
@@ -60,6 +60,7 @@ async function getPublicPostListItem(ctx: any, post: any) {
       .query('postBodies')
       .withIndex('by_post_id', (q: any) => q.eq('postId', post._id))
       .unique(),
+    post.thumbnailMediaId ? ctx.db.get(post.thumbnailMediaId) : Promise.resolve(null),
   ]);
 
   const tags = await Promise.all(
@@ -80,11 +81,16 @@ async function getPublicPostListItem(ctx: any, post: any) {
     }),
   );
 
+  const thumbnailUrl = thumbnail
+    ? await ctx.storage.getUrl(thumbnail.storageId)
+    : null;
+
   return {
     id: post._id,
     title: post.title,
     slug: post.slug,
     excerpt: post.excerpt,
+    thumbnailUrl,
     readingTimeMinutes: estimateReadingTime({
       html: body?.contentHtml ?? '',
       text: post.excerpt,

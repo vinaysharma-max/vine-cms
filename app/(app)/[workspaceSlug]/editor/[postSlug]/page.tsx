@@ -67,6 +67,7 @@ export default function EditPostPage() {
           title: draft.metadata.title,
           slug: draft.metadata.slug,
           excerpt: draft.metadata.excerpt,
+          thumbnailMediaId: draft.metadata.thumbnailMediaId ?? null,
           author: draft.metadata.authorId ? { id: draft.metadata.authorId } : null,
           category: draft.metadata.categorySlug
             ? { slug: draft.metadata.categorySlug }
@@ -78,7 +79,12 @@ export default function EditPostPage() {
           status: draft.metadata.status,
           contentJson: draft.contentJson,
         }
-      : post;
+      : post
+        ? {
+            ...post,
+            thumbnailMediaId: post.thumbnail?.id ?? null,
+          }
+        : null;
 
     if (!source) {
       return;
@@ -90,6 +96,7 @@ export default function EditPostPage() {
       title: source.title,
       slug: source.slug,
       excerpt: source.excerpt,
+      thumbnailMediaId: source.thumbnailMediaId ?? null,
       authorId: source.author?.id,
       categorySlug: source.category?.slug,
       tagSlugs: source.tags.map((tag) => tag.slug),

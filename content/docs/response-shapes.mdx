@@ -30,6 +30,7 @@ type PostSummary = {
   title: string;
   slug: string;
   excerpt: string;
+  thumbnailUrl: string | null;
   readingTimeMinutes: number;
   publishedAt: string | null;
   updatedAt: string;
@@ -180,5 +181,6 @@ type StatusResponse = {
 ## Notes
 
 - `readingTimeMinutes` is estimated from text, images, and code blocks
+- `thumbnailUrl` is a resolved image URL when a post has a thumbnail
 - route-level failures use `error`, not `message`
 - the current API does not ship pagination or filtering response metadata

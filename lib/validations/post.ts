@@ -16,6 +16,7 @@ export const postMetadataSchema = z.object({
       'Slug must be lowercase alphanumeric with hyphens',
     ),
   excerpt: z.string().trim(),
+  thumbnailMediaId: z.string().trim().nullable().optional(),
   authorId: z.string().trim().optional(),
   categorySlug: z.string().trim().max(255).optional(),
   tagSlugs: z.array(z.string()),

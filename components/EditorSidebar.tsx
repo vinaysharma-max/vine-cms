@@ -39,10 +39,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
-import { Calendar as CalendarIcon, Loader2, Info } from 'lucide-react';
+import {
+  Calendar as CalendarIcon,
+  ImagePlus,
+  Info,
+  Loader2,
+  Trash2,
+} from 'lucide-react';
 import AuthorSelect from '@/components/Author/AuthorSelect';
 import TagMultiSelect from '@/components/Tag/TagMultiSelect';
 import CategorySelect from '@/components/Category/CategorySelect';
+import { ImagePreview } from '@/components/Media/ImagePreview';
 import { useCreatePost, useUpdatePost } from '@/hooks/usePost';
 import type { CreatePostData, UpdatePostData } from '@/types/post';
 import type { PostMetadata } from '@/types/editor';
@@ -77,6 +84,9 @@ import {
   useSaveEditorDraft,
   useSetEditorAutosavePreference,
 } from '@/hooks/useEditorPersistence';
+import { useMedia } from '@/hooks/useMedia';
+import { useMediaUpload } from '@/hooks/useMediaUpload';
+import type { Media } from '@/types/media';
 
 const AUTOSAVE_DELAY_MS = 1200;
 const DRAFT_SAVE_DELAY_MS = 500;
@@ -110,6 +120,8 @@ export function EditorSidebar() {
     isLoading: isAutosavePreferenceLoading,
   } = useEditorAutosavePreference();
   const setAutosavePreferenceMutation = useSetEditorAutosavePreference();
+  const { data: mediaItems } = useMedia(workspaceSlug);
+  const thumbnailUpload = useMediaUpload(workspaceSlug);
   const router = useRouter();
   const canUseAutosave = Boolean(postSlug);
 
@@ -118,6 +130,7 @@ export function EditorSidebar() {
       title: metadata.title || '',
       slug: metadata.slug || '',
       excerpt: metadata.excerpt || '',
+      thumbnailMediaId: metadata.thumbnailMediaId ?? null,
       authorId: metadata.authorId,
       categorySlug: metadata.categorySlug,
       tagSlugs: metadata.tagSlugs || [],
@@ -144,6 +157,7 @@ export function EditorSidebar() {
   } = form;
 
   const titleValue = watch('title');
+  const thumbnailMediaId = watch('thumbnailMediaId');
   const allValues = watch();
   const slugManuallyEditedRef = React.useRef(false);
   const isSyncingRef = React.useRef(false);
@@ -167,6 +181,7 @@ export function EditorSidebar() {
   const [editorHtml, setEditorHtml] = React.useState('');
   const [showClearDialog, setShowClearDialog] = useState(false);
   const initialContentRef = React.useRef<string | null>(null);
+  const thumbnailInputRef = React.useRef<HTMLInputElement>(null);
   const editor = editorRef.current?.editor;
 
   useEffect(() => {
@@ -188,6 +203,7 @@ export function EditorSidebar() {
       title: values.title,
       slug: values.slug,
       excerpt: values.excerpt || '',
+      thumbnailMediaId: values.thumbnailMediaId ?? null,
       authorId: values.authorId,
       categorySlug: values.categorySlug,
       tagSlugs: values.tagSlugs || [],
@@ -202,6 +218,7 @@ export function EditorSidebar() {
       title: source.title || '',
       slug: source.slug || '',
       excerpt: source.excerpt || '',
+      thumbnailMediaId: source.thumbnailMediaId ?? null,
       authorId: source.authorId,
       categorySlug: source.categorySlug,
       tagSlugs: source.tagSlugs || [],
@@ -216,6 +233,9 @@ export function EditorSidebar() {
       if (left.title.trim() !== right.title.trim()) return false;
       if (left.slug.trim() !== right.slug.trim()) return false;
       if (left.excerpt.trim() !== right.excerpt.trim()) return false;
+      if ((left.thumbnailMediaId ?? null) !== (right.thumbnailMediaId ?? null)) {
+        return false;
+      }
       if ((left.authorId ?? null) !== (right.authorId ?? null)) return false;
       if ((left.categorySlug ?? null) !== (right.categorySlug ?? null)) {
         return false;
@@ -395,6 +415,7 @@ export function EditorSidebar() {
       baseData: {
         title: values.title,
         excerpt: values.excerpt || '',
+        thumbnailMediaId: values.thumbnailMediaId ?? null,
         authorId: values.authorId,
         categorySlug: values.categorySlug,
         tagSlugs: values.tagSlugs || [],
@@ -589,6 +610,7 @@ export function EditorSidebar() {
             title: '',
             slug: '',
             excerpt: '',
+            thumbnailMediaId: null,
             authorId: undefined,
             categorySlug: undefined,
             tagSlugs: [],
@@ -627,6 +649,7 @@ export function EditorSidebar() {
       title: '',
       slug: '',
       excerpt: '',
+      thumbnailMediaId: null,
       authorId: undefined,
       categorySlug: undefined,
       tagSlugs: [],
@@ -640,6 +663,7 @@ export function EditorSidebar() {
       title: '',
       slug: '',
       excerpt: '',
+      thumbnailMediaId: null,
       authorId: undefined,
       categorySlug: undefined,
       tagSlugs: [],
@@ -659,6 +683,10 @@ export function EditorSidebar() {
   };
 
   const editorIsEmpty = editor ? checkEditorEmpty(editor) : true;
+  const selectedThumbnail = useMemo<Media | null>(
+    () => mediaItems.find((item) => item.id === thumbnailMediaId) ?? null,
+    [mediaItems, thumbnailMediaId],
+  );
 
   const isSaving = isEditing
     ? updatePostMutation.isPending
@@ -735,6 +763,7 @@ export function EditorSidebar() {
         title: nextMetadata.title,
         slug: nextMetadata.slug,
         excerpt: nextMetadata.excerpt,
+        thumbnailMediaId: nextMetadata.thumbnailMediaId ?? null,
         authorId: nextMetadata.authorId,
         categorySlug: nextMetadata.categorySlug,
         tagSlugs: nextMetadata.tagSlugs,
@@ -854,6 +883,63 @@ export function EditorSidebar() {
     };
   }, [editor, editorHtml, editorText]);
 
+  const applyThumbnailSelection = useCallback(
+    (nextThumbnailMediaId: string | null) => {
+      setValue('thumbnailMediaId', nextThumbnailMediaId, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setMetadata((prev) => ({
+        ...prev,
+        thumbnailMediaId: nextThumbnailMediaId,
+      }));
+    },
+    [setMetadata, setValue],
+  );
+
+  const handleThumbnailUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+
+      if (!file) {
+        return;
+      }
+
+      try {
+        const media = await thumbnailUpload.uploadImageAsync(file);
+        applyThumbnailSelection(media.id);
+      } catch {
+        return;
+      }
+    },
+    [applyThumbnailSelection, thumbnailUpload],
+  );
+
+  const handleThumbnailUploadClick = useCallback(() => {
+    thumbnailInputRef.current?.click();
+  }, []);
+
+  const handleThumbnailRemove = useCallback(() => {
+    applyThumbnailSelection(null);
+  }, [applyThumbnailSelection]);
+
+  const thumbnailUploadLabel = useMemo(() => {
+    if (thumbnailUpload.uploadStage === 'generating') {
+      return 'Preparing upload...';
+    }
+
+    if (thumbnailUpload.uploadStage === 'uploading') {
+      return 'Uploading image...';
+    }
+
+    if (thumbnailUpload.uploadStage === 'confirming') {
+      return 'Saving thumbnail...';
+    }
+
+    return null;
+  }, [thumbnailUpload.uploadStage]);
+
   return (
     <Tabs
       value={activeTab}
@@ -928,6 +1014,126 @@ export function EditorSidebar() {
                     {errors.excerpt.message}
                   </p>
                 )}
+              </div>
+
+              <div className='space-y-3'>
+                <div className='space-y-1'>
+                  <label className='mb-2 flex items-center gap-2 text-base font-medium text-muted-foreground'>
+                    <span>Thumbnail</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className='h-3.5 w-3.5 cursor-help text-muted-foreground' />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          Optional cover image. Public API responses expose it as
+                          `thumbnailUrl`.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </label>
+                  <p className='text-xs text-muted-foreground'>
+                    Upload an optional thumbnail for cards, previews, and API consumers.
+                  </p>
+                </div>
+
+                <input
+                  ref={thumbnailInputRef}
+                  type='file'
+                  accept='image/*'
+                  className='hidden'
+                  onChange={handleThumbnailUpload}
+                />
+
+                <div className='overflow-hidden rounded-2xl border border-dashed border-foreground/15 bg-muted/20'>
+                  {selectedThumbnail ? (
+                    <div className='space-y-4 p-3'>
+                      <ImagePreview
+                        src={selectedThumbnail.url}
+                        alt={selectedThumbnail.filename}
+                        filename={selectedThumbnail.filename}
+                        thumbhashBase64={selectedThumbnail.thumbhashBase64}
+                        aspectRatio={selectedThumbnail.aspectRatio}
+                        className='aspect-[16/9] w-full rounded-xl'
+                      />
+                      <div className='space-y-1'>
+                        <p className='truncate text-sm font-medium text-foreground'>
+                          {selectedThumbnail.filename}
+                        </p>
+                        <p className='text-xs text-muted-foreground'>
+                          This image will be returned in post API responses.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className='flex flex-col items-start gap-3 p-4'>
+                      <div className='rounded-xl border border-foreground/10 bg-background/80 p-3'>
+                        <ImagePlus className='h-5 w-5 text-muted-foreground' />
+                      </div>
+                      <div className='space-y-1'>
+                        <p className='text-sm font-medium text-foreground'>
+                          No thumbnail selected
+                        </p>
+                        <p className='text-xs text-muted-foreground'>
+                          Add a JPG, PNG, WebP, or GIF up to 5MB.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {thumbnailMediaId && !selectedThumbnail && !thumbnailUpload.isPending && (
+                    <p className='px-4 pb-1 text-xs text-muted-foreground'>
+                      The current thumbnail could not be previewed, but the saved reference is still attached.
+                    </p>
+                  )}
+
+                  <div className='border-t border-foreground/10 bg-background/70 p-3'>
+                    <div className='flex flex-wrap items-center gap-2'>
+                      <Button
+                        type='button'
+                        variant={selectedThumbnail ? 'secondary' : 'outline'}
+                        size='sm'
+                        onClick={handleThumbnailUploadClick}
+                        disabled={thumbnailUpload.isPending}
+                      >
+                        {thumbnailUpload.isPending ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : (
+                          <ImagePlus className='mr-2 h-4 w-4' />
+                        )}
+                        {selectedThumbnail ? 'Replace thumbnail' : 'Upload thumbnail'}
+                      </Button>
+
+                      {thumbnailMediaId && (
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='sm'
+                          onClick={handleThumbnailRemove}
+                          disabled={thumbnailUpload.isPending}
+                        >
+                          <Trash2 className='mr-2 h-4 w-4' />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+
+                    {thumbnailUploadLabel && (
+                      <div className='mt-3 space-y-2'>
+                        <div className='flex items-center justify-between text-xs text-muted-foreground'>
+                          <span>{thumbnailUploadLabel}</span>
+                          <span>{Math.round(thumbnailUpload.progress)}%</span>
+                        </div>
+                        <div className='h-2 overflow-hidden rounded-full bg-muted'>
+                          <div
+                            className='h-full bg-primary transition-all duration-300'
+                            style={{ width: `${thumbnailUpload.progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className='grid grid-cols-2 gap-3'>

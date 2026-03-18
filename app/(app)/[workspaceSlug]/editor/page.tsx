@@ -53,6 +53,7 @@ export default function EditorPage() {
       title: draft.metadata.title,
       slug: draft.metadata.slug,
       excerpt: draft.metadata.excerpt,
+      thumbnailMediaId: draft.metadata.thumbnailMediaId ?? null,
       authorId: draft.metadata.authorId,
       categorySlug: draft.metadata.categorySlug,
       tagSlugs: draft.metadata.tagSlugs,

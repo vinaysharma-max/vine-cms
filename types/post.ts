@@ -6,6 +6,13 @@ export interface Post {
   title: string;
   slug: string;
   excerpt: string;
+  thumbnail: {
+    id: string;
+    url: string;
+    filename: string;
+    thumbhashBase64?: string | null;
+    aspectRatio?: number | null;
+  } | null;
   status: 'draft' | 'published';
   createdAt: string;
   publishedAt: string | null;
@@ -36,6 +43,7 @@ export interface CreatePostData {
   title: string;
   slug: string;
   excerpt: string;
+  thumbnailMediaId?: string | null;
   authorId?: string;
   categorySlug?: string;
   tagSlugs: string[];
@@ -49,6 +57,7 @@ export interface UpdatePostData {
   title?: string;
   slug?: string;
   excerpt?: string;
+  thumbnailMediaId?: string | null;
   authorId?: string;
   categorySlug?: string;
   tagSlugs?: string[];

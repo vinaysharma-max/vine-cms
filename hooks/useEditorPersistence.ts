@@ -10,6 +10,7 @@ export type EditorDraftRecord = {
     title: string;
     slug: string;
     excerpt: string;
+    thumbnailMediaId?: string | null;
     authorId?: string;
     categorySlug?: string;
     tagSlugs: string[];
@@ -24,6 +25,7 @@ type SaveEditorDraftData = {
   title: string;
   slug: string;
   excerpt: string;
+  thumbnailMediaId?: string | null;
   authorId?: string;
   categorySlug?: string;
   tagSlugs: string[];

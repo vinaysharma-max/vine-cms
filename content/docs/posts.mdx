@@ -44,6 +44,7 @@ curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts"
       "title": "Welcome to Vine",
       "slug": "welcome-to-vine",
       "excerpt": "A short introduction to the workspace.",
+      "thumbnailUrl": "https://cdn.example.com/welcome-thumb.webp",
       "readingTimeMinutes": 2,
       "publishedAt": "2026-03-08T10:00:00.000Z",
       "updatedAt": "2026-03-08T10:00:00.000Z",
@@ -63,6 +64,7 @@ Each post in the list response contains:
 - `title` (string): post title
 - `slug` (string): unique post slug
 - `excerpt` (string): short post summary
+- `thumbnailUrl` (string | null): resolved URL for the optional thumbnail image
 - `readingTimeMinutes` (number): estimated reading time
 - `publishedAt` (string | null): ISO timestamp for publish time
 - `updatedAt` (string): ISO timestamp for last update time
@@ -109,6 +111,7 @@ curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts/welcome-to-vine"
     "title": "Welcome to Vine",
     "slug": "welcome-to-vine",
     "excerpt": "A short introduction to the workspace.",
+    "thumbnailUrl": "https://cdn.example.com/welcome-thumb.webp",
     "readingTimeMinutes": 2,
     "publishedAt": "2026-03-08T10:00:00.000Z",
     "updatedAt": "2026-03-08T10:00:00.000Z",
@@ -125,6 +128,8 @@ curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts/welcome-to-vine"
 The single post response includes every field from the list response, plus:
 
 - `contentHtml` (string): rendered HTML content
+
+When a post has no thumbnail, `thumbnailUrl` is `null`.
 
 ### Error Handling
 

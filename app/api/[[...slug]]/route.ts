@@ -8,6 +8,7 @@ type PublicPostsResponse = {
     title: string;
     slug: string;
     excerpt: string;
+    thumbnailUrl: string | null;
     readingTimeMinutes: number;
     publishedAt: string | null;
     updatedAt: string;
@@ -23,6 +24,7 @@ type PublicPostResponse = {
     title: string;
     slug: string;
     excerpt: string;
+    thumbnailUrl: string | null;
     readingTimeMinutes: number;
     publishedAt: string | null;
     updatedAt: string;
