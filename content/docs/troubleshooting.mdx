@@ -120,18 +120,48 @@ The current route format is:
 
 If you are calling an older route format, update it.
 
-## Expecting Pagination Or Filters
+## Invalid Pagination Parameters
 
-The current shipped API does not yet support:
+**What you see:**
 
-- `limit`
-- `offset`
+```json
+{
+  "ok": false,
+  "error": "Invalid page query parameter. Expected a positive integer."
+}
+```
+
+or
+
+```json
+{
+  "ok": false,
+  "error": "Invalid pageSize query parameter. Maximum allowed value is 100."
+}
+```
+
+**Status Code:** `400 Bad Request`
+
+**Rules:**
+
+- `page` must be a positive integer
+- `pageSize` must be a positive integer
+- `pageSize` cannot be greater than `100`
+
+## Expecting Filters
+
+The current shipped API supports pagination with `page` and `pageSize`, but it does not yet support:
+
 - category filtering
 - tag filtering
 - author filtering
 - search
 
-If you used older docs that mentioned those features, those docs were ahead of the implementation.
+If you need paging, use routes like:
+
+```bash
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=2&pageSize=10"
+```
 
 ## Health Checks
 

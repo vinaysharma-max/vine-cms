@@ -60,13 +60,13 @@ You can call the API from:
 Here's a simple example using cURL:
 
 ```bash
-curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts"
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=1&pageSize=20"
 ```
 or using JavaScript:
 
 ```js
 const response = await fetch(
-  'https://vinecms.tech/api/public/v1/{API_KEY}/posts'
+  'https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=1&pageSize=20'
 );
 
 if (!response.ok) {
@@ -76,6 +76,7 @@ if (!response.ok) {
 
 const data = await response.json();
 console.log(data.posts);
+console.log(data.pagination);
 ```
 
 ### Example Response
@@ -83,13 +84,36 @@ console.log(data.posts);
 ```json
 {
   "ok": true,
-  "posts": []
+  "posts": [],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "totalItems": 0,
+    "totalPages": 0,
+    "hasNextPage": false,
+    "hasPreviousPage": false
+  }
 }
 ```
 
+## Pagination
+
+Collection endpoints support optional query parameters:
+
+- `page`: positive integer page number
+- `pageSize`: positive integer page size, up to `100`
+
+Example:
+
+```bash
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=2&pageSize=10"
+```
+
+If you omit both parameters, Vine preserves the current `v1` behavior and returns the full collection while still including pagination metadata in the response.
+
 ## Response Format
 
-All successful responses return JSON data. Error responses also use JSON with a message field describing the issue.
+All successful responses return JSON data. Error responses also use JSON with an `error` field describing the issue.
 
 
 ### Success Response

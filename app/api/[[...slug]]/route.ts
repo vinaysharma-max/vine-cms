@@ -1,8 +1,16 @@
 import { Elysia } from 'elysia';
 import { fetchMutation, fetchQuery } from 'convex/nextjs';
 import { makeFunctionReference } from 'convex/server';
+import {
+  MAX_PUBLIC_API_PAGE_SIZE,
+  type PublicApiPagination,
+} from '@/lib/public-api-pagination';
 
-type PublicPostsResponse = {
+type PaginatedCollectionResponse = {
+  pagination: PublicApiPagination;
+};
+
+type PublicPostsResponse = ({
   posts: Array<{
     id: string;
     title: string;
@@ -16,7 +24,7 @@ type PublicPostsResponse = {
     category: { slug: string; name: string } | null;
     tags: Array<{ slug: string; name: string }>;
   }>;
-} | null;
+} & PaginatedCollectionResponse) | null;
 
 type PublicPostResponse = {
   post: {
@@ -35,7 +43,7 @@ type PublicPostResponse = {
   } | null;
 } | null;
 
-type PublicAuthorsResponse = {
+type PublicAuthorsResponse = ({
   authors: Array<{
     id: string;
     name: string;
@@ -43,23 +51,23 @@ type PublicAuthorsResponse = {
     about: string;
     socialLinks: Record<string, string>;
   }>;
-} | null;
+} & PaginatedCollectionResponse) | null;
 
-type PublicCategoriesResponse = {
+type PublicCategoriesResponse = ({
   categories: Array<{
     id: string;
     name: string;
     slug: string;
   }>;
-} | null;
+} & PaginatedCollectionResponse) | null;
 
-type PublicTagsResponse = {
+type PublicTagsResponse = ({
   tags: Array<{
     id: string;
     name: string;
     slug: string;
   }>;
-} | null;
+} & PaginatedCollectionResponse) | null;
 
 type PublicStatsResponse = {
   stats: {
@@ -72,7 +80,7 @@ type PublicStatsResponse = {
 
 const listPublicPosts = makeFunctionReference<
   'query',
-  { apiKey: string },
+  { apiKey: string; page?: number; pageSize?: number },
   PublicPostsResponse
 >('publicApi:listPosts');
 
@@ -84,19 +92,19 @@ const getPublicPost = makeFunctionReference<
 
 const listPublicAuthors = makeFunctionReference<
   'query',
-  { apiKey: string },
+  { apiKey: string; page?: number; pageSize?: number },
   PublicAuthorsResponse
 >('publicApi:listAuthors');
 
 const listPublicCategories = makeFunctionReference<
   'query',
-  { apiKey: string },
+  { apiKey: string; page?: number; pageSize?: number },
   PublicCategoriesResponse
 >('publicApi:listCategories');
 
 const listPublicTags = makeFunctionReference<
   'query',
-  { apiKey: string },
+  { apiKey: string; page?: number; pageSize?: number },
   PublicTagsResponse
 >('publicApi:listTags');
 
@@ -121,6 +129,48 @@ function getRequestIp(request: Request) {
   return request.headers.get('x-real-ip')?.trim() ?? undefined;
 }
 
+function parsePositiveIntegerQueryParam(
+  value: string | null,
+  name: 'page' | 'pageSize',
+): { value?: number; error?: string } {
+  if (value === null || value.trim() === '') {
+    return {};
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return {
+      error: `Invalid ${name} query parameter. Expected a positive integer.`,
+    };
+  }
+
+  if (name === 'pageSize' && parsed > MAX_PUBLIC_API_PAGE_SIZE) {
+    return {
+      error: `Invalid pageSize query parameter. Maximum allowed value is ${MAX_PUBLIC_API_PAGE_SIZE}.`,
+    };
+  }
+
+  return { value: parsed };
+}
+
+function getPaginationArgs(request: Request) {
+  const url = new URL(request.url);
+  const page = parsePositiveIntegerQueryParam(url.searchParams.get('page'), 'page');
+  if (page.error) {
+    return { error: page.error };
+  }
+
+  const pageSize = parsePositiveIntegerQueryParam(url.searchParams.get('pageSize'), 'pageSize');
+  if (pageSize.error) {
+    return { error: pageSize.error };
+  }
+
+  return {
+    page: page.value,
+    pageSize: pageSize.value,
+  };
+}
+
 const api = new Elysia({ prefix: '/api' })
   .get('/health', () => ({
     ok: true,
@@ -138,8 +188,16 @@ const api = new Elysia({ prefix: '/api' })
       return { ok: false, error: 'Missing API key' };
     }
 
+    const pagination = getPaginationArgs(request);
+    if (pagination.error) {
+      set.status = 400;
+      return { ok: false, error: pagination.error };
+    }
+
     const result = await fetchQuery(listPublicPosts, {
       apiKey,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
     });
 
     if (!result) {
@@ -155,6 +213,7 @@ const api = new Elysia({ prefix: '/api' })
     return {
       ok: true,
       posts: result.posts,
+      pagination: result.pagination,
     };
   })
   .get('/public/v1/:apiKey/posts/:postSlug', async ({ params, request, set }) => {
@@ -196,7 +255,17 @@ const api = new Elysia({ prefix: '/api' })
       return { ok: false, error: 'Missing API key' };
     }
 
-    const result = await fetchQuery(listPublicAuthors, { apiKey });
+    const pagination = getPaginationArgs(request);
+    if (pagination.error) {
+      set.status = 400;
+      return { ok: false, error: pagination.error };
+    }
+
+    const result = await fetchQuery(listPublicAuthors, {
+      apiKey,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
     if (!result) {
       set.status = 401;
       return { ok: false, error: 'Invalid API key' };
@@ -210,6 +279,7 @@ const api = new Elysia({ prefix: '/api' })
     return {
       ok: true,
       authors: result.authors,
+      pagination: result.pagination,
     };
   })
   .get('/public/v1/:apiKey/categories', async ({ params, request, set }) => {
@@ -219,7 +289,17 @@ const api = new Elysia({ prefix: '/api' })
       return { ok: false, error: 'Missing API key' };
     }
 
-    const result = await fetchQuery(listPublicCategories, { apiKey });
+    const pagination = getPaginationArgs(request);
+    if (pagination.error) {
+      set.status = 400;
+      return { ok: false, error: pagination.error };
+    }
+
+    const result = await fetchQuery(listPublicCategories, {
+      apiKey,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
     if (!result) {
       set.status = 401;
       return { ok: false, error: 'Invalid API key' };
@@ -233,6 +313,7 @@ const api = new Elysia({ prefix: '/api' })
     return {
       ok: true,
       categories: result.categories,
+      pagination: result.pagination,
     };
   })
   .get('/public/v1/:apiKey/tags', async ({ params, request, set }) => {
@@ -242,7 +323,17 @@ const api = new Elysia({ prefix: '/api' })
       return { ok: false, error: 'Missing API key' };
     }
 
-    const result = await fetchQuery(listPublicTags, { apiKey });
+    const pagination = getPaginationArgs(request);
+    if (pagination.error) {
+      set.status = 400;
+      return { ok: false, error: pagination.error };
+    }
+
+    const result = await fetchQuery(listPublicTags, {
+      apiKey,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
     if (!result) {
       set.status = 401;
       return { ok: false, error: 'Invalid API key' };
@@ -256,6 +347,7 @@ const api = new Elysia({ prefix: '/api' })
     return {
       ok: true,
       tags: result.tags,
+      pagination: result.pagination,
     };
   })
   .get('/public/v1/:apiKey/stats', async ({ params, request, set }) => {

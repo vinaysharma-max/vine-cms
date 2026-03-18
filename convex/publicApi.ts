@@ -3,6 +3,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { estimateReadingTime } from '../lib/reading-time';
+import { paginatePublicApiItems } from '../lib/public-api-pagination';
 
 async function sha256(input: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
@@ -135,6 +136,8 @@ async function getPublicPostDetail(ctx: any, post: any) {
 export const listPosts = query({
   args: {
     apiKey: v.string(),
+    page: v.optional(v.number()),
+    pageSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const access = await validateApiKey(ctx, args.apiKey);
@@ -150,12 +153,19 @@ export const listPosts = query({
     const publicPosts = posts.filter(isPublicPost);
     const items = await Promise.all(publicPosts.map((post) => getPublicPostListItem(ctx, post)));
 
+    const sortedPosts = items.sort((a, b) => {
+      const aDate = a.publishedAt ?? a.updatedAt;
+      const bDate = b.publishedAt ?? b.updatedAt;
+      return +new Date(bDate) - +new Date(aDate);
+    });
+    const paginatedPosts = paginatePublicApiItems(sortedPosts, {
+      page: args.page,
+      pageSize: args.pageSize,
+    });
+
     return {
-      posts: items.sort((a, b) => {
-        const aDate = a.publishedAt ?? a.updatedAt;
-        const bDate = b.publishedAt ?? b.updatedAt;
-        return +new Date(bDate) - +new Date(aDate);
-      }),
+      posts: paginatedPosts.items,
+      pagination: paginatedPosts.pagination,
     };
   },
 });
@@ -187,6 +197,8 @@ export const getPost = query({
 export const listAuthors = query({
   args: {
     apiKey: v.string(),
+    page: v.optional(v.number()),
+    pageSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const access = await validateApiKey(ctx, args.apiKey);
@@ -199,16 +211,23 @@ export const listAuthors = query({
       .withIndex('by_workspace_id', (q: any) => q.eq('workspaceId', access.workspace._id))
       .collect();
 
+    const sortedAuthors = authors
+      .map((author) => ({
+        id: author._id,
+        name: author.name,
+        email: author.email,
+        about: author.about ?? '',
+        socialLinks: (author.socialLinks as Record<string, string> | undefined) ?? {},
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const paginatedAuthors = paginatePublicApiItems(sortedAuthors, {
+      page: args.page,
+      pageSize: args.pageSize,
+    });
+
     return {
-      authors: authors
-        .map((author) => ({
-          id: author._id,
-          name: author.name,
-          email: author.email,
-          about: author.about ?? '',
-          socialLinks: (author.socialLinks as Record<string, string> | undefined) ?? {},
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+      authors: paginatedAuthors.items,
+      pagination: paginatedAuthors.pagination,
     };
   },
 });
@@ -216,6 +235,8 @@ export const listAuthors = query({
 export const listCategories = query({
   args: {
     apiKey: v.string(),
+    page: v.optional(v.number()),
+    pageSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const access = await validateApiKey(ctx, args.apiKey);
@@ -228,14 +249,21 @@ export const listCategories = query({
       .withIndex('by_workspace_id', (q: any) => q.eq('workspaceId', access.workspace._id))
       .collect();
 
+    const sortedCategories = categories
+      .map((category) => ({
+        id: category._id,
+        name: category.name,
+        slug: category.slug,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const paginatedCategories = paginatePublicApiItems(sortedCategories, {
+      page: args.page,
+      pageSize: args.pageSize,
+    });
+
     return {
-      categories: categories
-        .map((category) => ({
-          id: category._id,
-          name: category.name,
-          slug: category.slug,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+      categories: paginatedCategories.items,
+      pagination: paginatedCategories.pagination,
     };
   },
 });
@@ -243,6 +271,8 @@ export const listCategories = query({
 export const listTags = query({
   args: {
     apiKey: v.string(),
+    page: v.optional(v.number()),
+    pageSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const access = await validateApiKey(ctx, args.apiKey);
@@ -255,14 +285,21 @@ export const listTags = query({
       .withIndex('by_workspace_id', (q: any) => q.eq('workspaceId', access.workspace._id))
       .collect();
 
+    const sortedTags = tags
+      .map((tag) => ({
+        id: tag._id,
+        name: tag.name,
+        slug: tag.slug,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const paginatedTags = paginatePublicApiItems(sortedTags, {
+      page: args.page,
+      pageSize: args.pageSize,
+    });
+
     return {
-      tags: tags
-        .map((tag) => ({
-          id: tag._id,
-          name: tag.name,
-          slug: tag.slug,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+      tags: paginatedTags.items,
+      pagination: paginatedTags.pagination,
     };
   },
 });

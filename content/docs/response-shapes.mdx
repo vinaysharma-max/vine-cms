@@ -7,6 +7,21 @@ This page provides TypeScript reference types for the currently shipped Vine pub
 
 ## Shared Types
 
+### Pagination
+
+Collection endpoints include pagination metadata in this format:
+
+```ts
+type Pagination = {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+```
+
 ### ErrorResponse
 
 All error responses follow this format:
@@ -56,6 +71,7 @@ Response shape for post list endpoints.
 type PostListResponse = {
   ok: true;
   posts: PostSummary[];
+  pagination: Pagination;
 };
 ```
 
@@ -98,6 +114,7 @@ type Tag = {
 type CategoryListResponse = {
   ok: true;
   categories: Category[];
+  pagination: Pagination;
 };
 ```
 
@@ -107,6 +124,7 @@ type CategoryListResponse = {
 type TagListResponse = {
   ok: true;
   tags: Tag[];
+  pagination: Pagination;
 };
 ```
 
@@ -132,6 +150,7 @@ Response shape for authors endpoint.
 type AuthorListResponse = {
   ok: true;
   authors: Author[];
+  pagination: Pagination;
 };
 ```
 
@@ -183,4 +202,5 @@ type StatusResponse = {
 - `readingTimeMinutes` is estimated from text, images, and code blocks
 - `thumbnailUrl` is a resolved image URL when a post has a thumbnail
 - route-level failures use `error`, not `message`
-- the current API does not ship pagination or filtering response metadata
+- list endpoints support `page` and `pageSize` query parameters
+- omitting pagination params preserves the full-collection `v1` behavior
