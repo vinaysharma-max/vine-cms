@@ -105,7 +105,6 @@ export function EditorSidebar() {
     originalContent,
     setOriginalMetadata,
     setOriginalContent,
-    shouldSkipBlockerRef,
     saveRef,
     hasUnsavedChangesRef,
   } = useEditorContext();
@@ -569,27 +568,29 @@ export function EditorSidebar() {
       return;
     }
 
-    const { formValues, baseData } = prepared;
+    const { formValues, baseData, contentJsonSnapshot } = prepared;
 
     if (isEditing && postSlug) {
-      const updateData: UpdatePostData = {
-        ...baseData,
-        slug: formValues.slug,
-        publishedAt: formValues.publishedAt || new Date(),
-      };
-
-      updatePostMutation.mutate(updateData, {
-        onSuccess: () => {
-          const editorInstance = editorRef.current?.editor;
-          if (editorInstance) {
-            editorInstance.commands.setContent('<p></p>');
-          }
-
-          clearCurrentDraft();
-          shouldSkipBlockerRef.current = true;
-          router.push(getWorkspacePath(workspaceSlug, 'posts'));
+      const nextPost = await updatePostMutation.mutateAsync(
+        {
+          ...baseData,
+          slug: formValues.slug,
+          publishedAt: formValues.publishedAt || new Date(),
         },
-      });
+        {
+          postSlug,
+        },
+      );
+
+      autosavePostSlugRef.current = nextPost.slug;
+      applySavedBaseline(formValues, contentJsonSnapshot);
+      clearCurrentDraft();
+
+      if (nextPost.slug !== postSlug) {
+        startTransition(() => {
+          router.replace(getWorkspacePath(workspaceSlug, `editor/${nextPost.slug}`));
+        });
+      }
     } else {
       const postData = {
         ...baseData,
@@ -623,6 +624,7 @@ export function EditorSidebar() {
       });
     }
   }, [
+    applySavedBaseline,
     clearCurrentDraft,
     createPostMutation,
     editorRef,
@@ -631,7 +633,6 @@ export function EditorSidebar() {
     prepareSaveData,
     router,
     setMetadata,
-    shouldSkipBlockerRef,
     updatePostMutation,
     workspaceSlug,
   ]);
