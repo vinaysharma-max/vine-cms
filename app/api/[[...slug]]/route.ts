@@ -133,7 +133,7 @@ function getRequestIp(request: Request) {
 function parsePositiveIntegerQueryParam(
   value: string | null,
   name: 'limit',
-): { value?: number; error?: string } {
+): { value: number; error?: never } | { value?: never; error: string } | { value?: never; error?: never } {
   if (value === null || value.trim() === '') {
     return {};
   }
@@ -154,20 +154,36 @@ function parsePositiveIntegerQueryParam(
   return { value: parsed };
 }
 
-function getPaginationArgs(request: Request) {
+type PaginationArgs =
+  | {
+      ok: false;
+      error: string;
+      cursor?: never;
+      limit?: never;
+    }
+  | {
+      ok: true;
+      error?: never;
+      cursor: string | null;
+      limit: number;
+    };
+
+function getPaginationArgs(request: Request): PaginationArgs {
   const url = new URL(request.url);
   if (url.searchParams.has('page') || url.searchParams.has('pageSize')) {
     return {
+      ok: false,
       error: 'The page and pageSize query parameters are no longer supported. Use cursor and limit instead.',
     };
   }
 
   const limit = parsePositiveIntegerQueryParam(url.searchParams.get('limit'), 'limit');
   if (limit.error) {
-    return { error: limit.error };
+    return { ok: false, error: limit.error };
   }
 
   return {
+    ok: true,
     cursor: url.searchParams.get('cursor')?.trim() || null,
     limit: limit.value ?? DEFAULT_PUBLIC_API_LIMIT,
   };
@@ -191,7 +207,7 @@ const api = new Elysia({ prefix: '/api' })
     }
 
     const pagination = getPaginationArgs(request);
-    if (pagination.error) {
+    if (!pagination.ok) {
       set.status = 400;
       return { ok: false, error: pagination.error };
     }
@@ -260,7 +276,7 @@ const api = new Elysia({ prefix: '/api' })
     }
 
     const pagination = getPaginationArgs(request);
-    if (pagination.error) {
+    if (!pagination.ok) {
       set.status = 400;
       return { ok: false, error: pagination.error };
     }
@@ -296,7 +312,7 @@ const api = new Elysia({ prefix: '/api' })
     }
 
     const pagination = getPaginationArgs(request);
-    if (pagination.error) {
+    if (!pagination.ok) {
       set.status = 400;
       return { ok: false, error: pagination.error };
     }
@@ -332,7 +348,7 @@ const api = new Elysia({ prefix: '/api' })
     }
 
     const pagination = getPaginationArgs(request);
-    if (pagination.error) {
+    if (!pagination.ok) {
       set.status = 400;
       return { ok: false, error: pagination.error };
     }
