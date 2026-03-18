@@ -1,24 +1,28 @@
-'use client';
+"use client";
 
-import * as React from 'react';
+import * as React from "react";
 import type {
   ColumnDef,
   ColumnFiltersState,
   RowSelectionState,
   SortingState,
   VisibilityState,
-} from '@tanstack/react-table';
+} from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
-} from '@tanstack/react-table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+} from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -26,8 +30,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+} from "@/components/ui/table";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   ArrowDown,
   ArrowUp,
@@ -36,9 +40,9 @@ import {
   Search,
   Settings2,
   Trash2,
-} from 'lucide-react';
+} from "lucide-react";
 
-const SELECTION_COLUMN_ID = 'select';
+const SELECTION_COLUMN_ID = "select";
 
 type CustomizableColumn = {
   id: string;
@@ -55,11 +59,11 @@ function getColumnId<TData, TValue>(
   column: ColumnDef<TData, TValue>,
   index: number,
 ) {
-  if ('id' in column && typeof column.id === 'string') {
+  if ("id" in column && typeof column.id === "string") {
     return column.id;
   }
 
-  if ('accessorKey' in column && typeof column.accessorKey === 'string') {
+  if ("accessorKey" in column && typeof column.accessorKey === "string") {
     return column.accessorKey;
   }
 
@@ -67,7 +71,7 @@ function getColumnId<TData, TValue>(
 }
 
 function readStoredColumnPreferences(storageKey?: string) {
-  if (!storageKey || typeof window === 'undefined') {
+  if (!storageKey || typeof window === "undefined") {
     return null;
   }
 
@@ -129,12 +133,11 @@ export function DataTable<TData, TValue>({
     [],
   );
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
-    () => ({
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>(() => ({
       ...defaultColumnVisibility,
       ...(storedPreferences?.visibility ?? {}),
-    }),
-  );
+    }));
   const [customColumnOrder, setCustomColumnOrder] = React.useState<string[]>(
     () => storedPreferences?.order ?? customizableColumnIds,
   );
@@ -146,10 +149,10 @@ export function DataTable<TData, TValue>({
         <Checkbox
           checked={
             table.getIsAllRowsSelected() ||
-            (table.getIsSomeRowsSelected() && 'indeterminate')
+            (table.getIsSomeRowsSelected() && "indeterminate")
           }
           onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
-          aria-label='Select all'
+          aria-label="Select all"
           onClick={(e) => e.stopPropagation()}
         />
       ),
@@ -157,7 +160,7 @@ export function DataTable<TData, TValue>({
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label='Select row'
+          aria-label="Select row"
           onClick={(e) => e.stopPropagation()}
         />
       ),
@@ -177,7 +180,9 @@ export function DataTable<TData, TValue>({
   );
   const fixedColumnIds = React.useMemo(
     () =>
-      dataColumnIds.filter((columnId) => !customizableColumnIds.includes(columnId)),
+      dataColumnIds.filter(
+        (columnId) => !customizableColumnIds.includes(columnId),
+      ),
     [customizableColumnIds, dataColumnIds],
   );
   const orderedCustomizableColumns = React.useMemo(() => {
@@ -212,7 +217,7 @@ export function DataTable<TData, TValue>({
   );
 
   React.useEffect(() => {
-    if (!columnPreferencesKey || typeof window === 'undefined') {
+    if (!columnPreferencesKey || typeof window === "undefined") {
       return;
     }
 
@@ -280,7 +285,7 @@ export function DataTable<TData, TValue>({
   }, []);
 
   const handleMoveColumn = React.useCallback(
-    (columnId: string, direction: 'up' | 'down') => {
+    (columnId: string, direction: "up" | "down") => {
       setCustomColumnOrder((current) => {
         const normalized = [
           ...current.filter((id) => customizableColumnIds.includes(id)),
@@ -291,7 +296,7 @@ export function DataTable<TData, TValue>({
           return normalized;
         }
 
-        const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+        const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1;
         if (toIndex < 0 || toIndex >= normalized.length) {
           return normalized;
         }
@@ -311,58 +316,58 @@ export function DataTable<TData, TValue>({
   }, [customizableColumnIds, defaultColumnVisibility]);
 
   return (
-    <div className='flex h-full min-h-0 flex-col gap-4'>
-      <div className='flex shrink-0 items-center gap-2 pt-0 pb-4'>
-        <div className='relative w-full max-w-md'>
-          <Search className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="flex shrink-0 items-center gap-2 pt-0 pb-4">
+        <div className="relative w-full max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder='Search posts, authors, categories, or tags...'
-            value={(table.getColumn('title')?.getFilterValue() as string) ?? ''}
+            placeholder="Search posts, authors, categories, or tags..."
+            value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
             onChange={(event) =>
-              table.getColumn('title')?.setFilterValue(event.target.value)
+              table.getColumn("title")?.setFilterValue(event.target.value)
             }
-            className='pl-9'
+            className="pl-9"
           />
         </div>
         {hasSelection && onDeleteSelected && (
           <Button
-            variant='destructive'
+            variant="destructive"
             onClick={handleDeleteSelected}
-            className='whitespace-nowrap'
+            className="whitespace-nowrap"
           >
-            <Trash2 size={16} className='mr-1' />
+            <Trash2 size={16} className="mr-1" />
             Delete ({selectedSlugs.length})
           </Button>
         )}
-        <div className='flex items-center gap-2 ml-auto'>
+        <div className="flex items-center gap-2 ml-auto">
           {orderedCustomizableColumns.length > 0 && (
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant='outline' className='whitespace-nowrap'>
-                  <Settings2 size={16} className='mr-1' />
-                  Customize Columns
+                <Button variant="outline" className="whitespace-nowrap">
+                  <Settings2 size={16} className="mr-1" />
+                  Customize
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align='end' className='w-80 p-0'>
-                <div className='border-b px-4 py-3'>
-                  <div className='flex items-start justify-between gap-3'>
+              <PopoverContent align="end" className="w-80 p-0">
+                <div className="border-b px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className='text-sm font-semibold'>Table columns</p>
-                      <p className='text-xs text-muted-foreground'>
+                      <p className="text-sm font-semibold">Table columns</p>
+                      <p className="text-xs text-muted-foreground">
                         Show, hide, and reorder the optional post properties.
                       </p>
                     </div>
                     <Button
-                      variant='ghost'
-                      size='sm'
-                      className='h-7 px-2'
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2"
                       onClick={resetColumnPreferences}
                     >
                       Reset
                     </Button>
                   </div>
                 </div>
-                <div className='max-h-80 space-y-1 overflow-y-auto p-2'>
+                <div className="max-h-80 space-y-1 overflow-y-auto p-2">
                   {orderedCustomizableColumns.map((column, index) => {
                     const isVisible =
                       effectiveColumnVisibility[column.id] !== false;
@@ -370,7 +375,7 @@ export function DataTable<TData, TValue>({
                     return (
                       <div
                         key={column.id}
-                        className='flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted/50'
+                        className="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted/50"
                       >
                         <Checkbox
                           id={`column-${column.id}`}
@@ -382,26 +387,26 @@ export function DataTable<TData, TValue>({
                         />
                         <label
                           htmlFor={`column-${column.id}`}
-                          className='flex-1 cursor-pointer text-sm font-medium'
+                          className="flex-1 cursor-pointer text-sm font-medium"
                         >
                           {column.label}
                         </label>
-                        <div className='flex items-center gap-1'>
+                        <div className="flex items-center gap-1">
                           <Button
-                            type='button'
-                            variant='ghost'
-                            size='icon-sm'
-                            onClick={() => handleMoveColumn(column.id, 'up')}
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleMoveColumn(column.id, "up")}
                             disabled={index === 0}
                             aria-label={`Move ${column.label} up`}
                           >
                             <ArrowUp />
                           </Button>
                           <Button
-                            type='button'
-                            variant='ghost'
-                            size='icon-sm'
-                            onClick={() => handleMoveColumn(column.id, 'down')}
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleMoveColumn(column.id, "down")}
                             disabled={
                               index === orderedCustomizableColumns.length - 1
                             }
@@ -419,26 +424,31 @@ export function DataTable<TData, TValue>({
           )}
           {onImportMarkdown && (
             <Button
-              variant='outline'
+              variant="outline"
               onClick={onImportMarkdown}
-              className='whitespace-nowrap'
+              className="whitespace-nowrap"
             >
-              <FileDown size={16} className='mr-1' />
+              <FileDown size={16} className="mr-1" />
               Import Markdown
             </Button>
           )}
           {onNewPost && (
-            <Button onClick={onNewPost} className='whitespace-nowrap'>
-              <Plus size={16} className='mr-1' />
+            <Button onClick={onNewPost} className="whitespace-nowrap">
+              <Plus size={16} className="mr-1" />
               New Post
             </Button>
           )}
         </div>
       </div>
-      <div className='min-h-0 flex-1 overflow-hidden rounded-md border'>
-        <ScrollArea className='h-full w-full'>
-          <div className='w-full'>
-            <Table className='w-full min-w-max'>
+      <div className="shrink-0 text-sm text-muted-foreground">
+        {hasSelection
+          ? `${selectedSlugs.length} of ${table.getFilteredRowModel().rows.length} row(s) selected.`
+          : `${table.getFilteredRowModel().rows.length} post(s) total.`}
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden rounded-md border">
+        <ScrollArea className="h-full w-full">
+          <div className="w-full">
+            <Table className="w-full min-w-max">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -462,16 +472,16 @@ export function DataTable<TData, TValue>({
                   table.getRowModel().rows.map((row) => (
                     <TableRow
                       key={row.id}
-                      data-state={row.getIsSelected() && 'selected'}
+                      data-state={row.getIsSelected() && "selected"}
                       tabIndex={0}
                       onClick={() => handleRowClick(row)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                        if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           handleRowClick(row);
                         }
                       }}
-                      className='cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
+                      className="cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
@@ -487,7 +497,7 @@ export function DataTable<TData, TValue>({
                   <TableRow>
                     <TableCell
                       colSpan={columns.length + 1}
-                      className='h-24 text-center'
+                      className="h-24 text-center"
                     >
                       No results.
                     </TableCell>
@@ -496,16 +506,15 @@ export function DataTable<TData, TValue>({
               </TableBody>
             </Table>
           </div>
-          <ScrollBar orientation='horizontal' className='[&_[data-slot=scroll-area-thumb]]:bg-foreground/15' />
-          <ScrollBar orientation='vertical' className='[&_[data-slot=scroll-area-thumb]]:bg-foreground/15' />
+          <ScrollBar
+            orientation="horizontal"
+            className="[&_[data-slot=scroll-area-thumb]]:bg-foreground/15"
+          />
+          <ScrollBar
+            orientation="vertical"
+            className="[&_[data-slot=scroll-area-thumb]]:bg-foreground/15"
+          />
         </ScrollArea>
-      </div>
-      <div className='flex shrink-0 items-center py-4'>
-        <div className='text-sm text-muted-foreground'>
-          {hasSelection
-            ? `${selectedSlugs.length} of ${table.getFilteredRowModel().rows.length} row(s) selected.`
-            : `${table.getFilteredRowModel().rows.length} post(s) total.`}
-        </div>
       </div>
     </div>
   );
