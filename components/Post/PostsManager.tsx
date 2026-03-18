@@ -338,11 +338,11 @@ function PostsGridView({
         </div>
         <div className='flex flex-wrap items-center gap-2'>
           <Button variant='outline' onClick={onImportMarkdown}>
-            <FileDown className='mr-2 h-4 w-4' />
+            <FileDown className='mr-1 h-4 w-4' />
             Import Markdown
           </Button>
           <Button onClick={onNewPost}>
-            <Plus className='mr-2 h-4 w-4' />
+            <Plus className='mr-1 h-4 w-4' />
             New Post
           </Button>
         </div>

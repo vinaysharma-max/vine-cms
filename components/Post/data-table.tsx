@@ -12,7 +12,6 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
@@ -34,6 +33,7 @@ import {
   ArrowUp,
   FileDown,
   Plus,
+  Search,
   Settings2,
   Trash2,
 } from 'lucide-react';
@@ -145,10 +145,10 @@ export function DataTable<TData, TValue>({
       header: ({ table }) => (
         <Checkbox
           checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
+            table.getIsAllRowsSelected() ||
+            (table.getIsSomeRowsSelected() && 'indeterminate')
           }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
           aria-label='Select all'
           onClick={(e) => e.stopPropagation()}
         />
@@ -243,7 +243,6 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
@@ -314,14 +313,17 @@ export function DataTable<TData, TValue>({
   return (
     <div className='flex h-full min-h-0 flex-col gap-4'>
       <div className='flex shrink-0 items-center gap-2 pt-0 pb-4'>
-        <Input
-          placeholder='Filter posts by title...'
-          value={(table.getColumn('title')?.getFilterValue() as string) ?? ''}
-          onChange={(event) =>
-            table.getColumn('title')?.setFilterValue(event.target.value)
-          }
-          className='max-w-sm'
-        />
+        <div className='relative w-full max-w-md'>
+          <Search className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+          <Input
+            placeholder='Search posts, authors, categories, or tags...'
+            value={(table.getColumn('title')?.getFilterValue() as string) ?? ''}
+            onChange={(event) =>
+              table.getColumn('title')?.setFilterValue(event.target.value)
+            }
+            className='pl-9'
+          />
+        </div>
         {hasSelection && onDeleteSelected && (
           <Button
             variant='destructive'
@@ -498,28 +500,12 @@ export function DataTable<TData, TValue>({
           <ScrollBar orientation='vertical' className='[&_[data-slot=scroll-area-thumb]]:bg-foreground/15' />
         </ScrollArea>
       </div>
-      <div className='flex shrink-0 items-center justify-end space-x-2 py-4'>
-        <div className='flex-1 text-sm text-muted-foreground'>
+      <div className='flex shrink-0 items-center py-4'>
+        <div className='text-sm text-muted-foreground'>
           {hasSelection
             ? `${selectedSlugs.length} of ${table.getFilteredRowModel().rows.length} row(s) selected.`
             : `${table.getFilteredRowModel().rows.length} post(s) total.`}
         </div>
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
       </div>
     </div>
   );
