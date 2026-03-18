@@ -312,8 +312,8 @@ export function DataTable<TData, TValue>({
   }, [customizableColumnIds, defaultColumnVisibility]);
 
   return (
-    <div className='space-y-4'>
-      <div className='flex items-center gap-2 pt-0 pb-4'>
+    <div className='flex h-full min-h-0 flex-col gap-4'>
+      <div className='flex shrink-0 items-center gap-2 pt-0 pb-4'>
         <Input
           placeholder='Filter posts by title...'
           value={(table.getColumn('title')?.getFilterValue() as string) ?? ''}
@@ -433,8 +433,8 @@ export function DataTable<TData, TValue>({
           )}
         </div>
       </div>
-      <div className='rounded-md border overflow-hidden'>
-        <ScrollArea className='w-full'>
+      <div className='min-h-0 flex-1 overflow-hidden rounded-md border'>
+        <ScrollArea className='h-full w-full'>
           <div className='w-full'>
             <Table className='w-full min-w-max'>
               <TableHeader>
@@ -498,7 +498,7 @@ export function DataTable<TData, TValue>({
           <ScrollBar orientation='vertical' className='[&_[data-slot=scroll-area-thumb]]:bg-foreground/15' />
         </ScrollArea>
       </div>
-      <div className='flex items-center justify-end space-x-2 py-4'>
+      <div className='flex shrink-0 items-center justify-end space-x-2 py-4'>
         <div className='flex-1 text-sm text-muted-foreground'>
           {hasSelection
             ? `${selectedSlugs.length} of ${table.getFilteredRowModel().rows.length} row(s) selected.`

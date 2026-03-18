@@ -39,6 +39,7 @@ import { createColumns, POST_CUSTOMIZABLE_COLUMNS } from './columns';
 import type { Post } from '@/types/post';
 import { getWorkspacePath } from '@/lib/utils';
 import { ImagePreview } from '@/components/Media/ImagePreview';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 
 type PostsViewMode = 'list' | 'grid';
@@ -126,8 +127,8 @@ export default function PostsManager() {
 
   if (isLoading || !workspaceSlug) {
     return (
-      <div className='p-6'>
-        <Card>
+      <div className='flex h-full min-h-0 flex-col p-6'>
+        <Card className='flex flex-1 flex-col'>
           <CardHeader>
             <CardTitle>
               <Skeleton className='h-6 w-40' />
@@ -151,8 +152,8 @@ export default function PostsManager() {
 
   if (isError) {
     return (
-      <div className='p-6'>
-        <Card>
+      <div className='flex h-full min-h-0 flex-col p-6'>
+        <Card className='flex flex-1 flex-col'>
           <CardHeader>
             <div>
               <CardTitle>Posts</CardTitle>
@@ -179,8 +180,8 @@ export default function PostsManager() {
 
   return (
     <>
-      <div className='p-6'>
-        <Card className='animate-in fade-in-50 zoom-in-95 duration-300'>
+      <div className='flex h-full min-h-0 flex-col p-6'>
+        <Card className='flex min-h-0 flex-1 flex-col animate-in fade-in-50 zoom-in-95 duration-300'>
           <CardHeader>
             <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
               <div>
@@ -213,7 +214,7 @@ export default function PostsManager() {
               )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className='flex min-h-0 flex-1 flex-col'>
             {posts.length === 0 ? (
               <Empty className='border-dashed animate-in fade-in-50'>
                 <EmptyHeader>
@@ -240,19 +241,21 @@ export default function PostsManager() {
                 </EmptyContent>
               </Empty>
             ) : viewMode === 'list' ? (
-              <DataTable
-                columns={tableColumns}
-                customizableColumns={POST_CUSTOMIZABLE_COLUMNS.map((column) => ({
-                  ...column,
-                }))}
-                columnPreferencesKey={`posts-table:${workspaceSlug}`}
-                data={posts}
-                onNewPost={handleNewPost}
-                onImportMarkdown={() => setIsImportOpen(true)}
-                onEdit={handleEdit}
-                onDeleteSelected={handleDeleteSelected}
-                getRowSlug={getRowSlug}
-              />
+              <div className='min-h-0 flex-1'>
+                <DataTable
+                  columns={tableColumns}
+                  customizableColumns={POST_CUSTOMIZABLE_COLUMNS.map((column) => ({
+                    ...column,
+                  }))}
+                  columnPreferencesKey={`posts-table:${workspaceSlug}`}
+                  data={posts}
+                  onNewPost={handleNewPost}
+                  onImportMarkdown={() => setIsImportOpen(true)}
+                  onEdit={handleEdit}
+                  onDeleteSelected={handleDeleteSelected}
+                  getRowSlug={getRowSlug}
+                />
+              </div>
             ) : (
               <PostsGridView
                 posts={filteredGridPosts}
@@ -322,8 +325,8 @@ function PostsGridView({
   onEdit: (postSlug: string) => void;
 }) {
   return (
-    <div className='space-y-5'>
-      <div className='flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between'>
+    <div className='flex h-full min-h-0 flex-col gap-5'>
+      <div className='flex shrink-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between'>
         <div className='relative w-full max-w-md'>
           <Search className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
           <Input
@@ -354,95 +357,97 @@ function PostsGridView({
         </div>
       ) : (
         <>
-          <div className='text-sm text-muted-foreground'>
+          <div className='shrink-0 text-sm text-muted-foreground'>
             {posts.length} post{posts.length === 1 ? '' : 's'}
           </div>
-          <div className='grid gap-5 md:grid-cols-2 xl:grid-cols-3'>
-            {posts.map((post) => (
-              <button
-                key={post.id}
-                type='button'
-                onClick={() => onEdit(post.slug)}
-                className='group text-left'
-              >
-                <Card className='h-full gap-0 overflow-hidden border-foreground/10 bg-gradient-to-b from-background to-muted/20 py-0 transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-lg'>
-                  <div className='relative bg-muted/20 p-3'>
-                    {post.thumbnail ? (
-                      <ImagePreview
-                        src={post.thumbnail.url}
-                        alt={post.thumbnail.filename}
-                        filename={post.thumbnail.filename}
-                        thumbhashBase64={post.thumbnail.thumbhashBase64}
-                        aspectRatio={post.thumbnail.aspectRatio}
-                        className='aspect-[16/9] w-full rounded-xl'
-                      />
-                    ) : (
-                      <div className='flex aspect-[16/9] w-full items-center justify-center rounded-xl border border-dashed border-foreground/10 bg-background/80'>
-                        <div className='flex flex-col items-center gap-2 text-muted-foreground'>
-                          <FileText className='h-6 w-6' />
-                          <span className='text-xs font-medium'>No thumbnail</span>
-                        </div>
-                      </div>
-                    )}
-                    <div className='pointer-events-none absolute left-6 top-6'>
-                      <Badge
-                        variant={post.status === 'published' ? 'default' : 'secondary'}
-                        className='capitalize shadow-sm'
-                      >
-                        {post.status}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <CardContent className='space-y-2 px-5 py-5'>
-                    <div className='space-y-1'>
-                      <div className='line-clamp-2 text-lg font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary'>
-                        {post.title || 'Untitled'}
-                      </div>
-                      {post.excerpt ? (
-                        <p className='line-clamp-3 text-sm leading-6 text-muted-foreground'>
-                          {post.excerpt}
-                        </p>
+          <ScrollArea className='min-h-0 flex-1 pr-2 [&_[data-slot=scroll-area-thumb]]:bg-foreground/15'>
+            <div className='grid gap-5 pb-1 md:grid-cols-2 xl:grid-cols-3'>
+              {posts.map((post) => (
+                <button
+                  key={post.id}
+                  type='button'
+                  onClick={() => onEdit(post.slug)}
+                  className='group text-left'
+                >
+                  <Card className='h-full gap-0 overflow-hidden border-foreground/10 bg-gradient-to-b from-background to-muted/20 py-0 transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-lg'>
+                    <div className='relative bg-muted/20 p-3'>
+                      {post.thumbnail ? (
+                        <ImagePreview
+                          src={post.thumbnail.url}
+                          alt={post.thumbnail.filename}
+                          filename={post.thumbnail.filename}
+                          thumbhashBase64={post.thumbnail.thumbhashBase64}
+                          aspectRatio={post.thumbnail.aspectRatio}
+                          className='aspect-[16/9] w-full rounded-xl'
+                        />
                       ) : (
-                        <p className='text-sm italic text-muted-foreground'>
-                          No description added yet.
-                        </p>
+                        <div className='flex aspect-[16/9] w-full items-center justify-center rounded-xl border border-dashed border-foreground/10 bg-background/80'>
+                          <div className='flex flex-col items-center gap-2 text-muted-foreground'>
+                            <FileText className='h-6 w-6' />
+                            <span className='text-xs font-medium'>No thumbnail</span>
+                          </div>
+                        </div>
                       )}
-                    </div>
-
-                    <div className='flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground'>
-                      {post.author && <span>{post.author.name}</span>}
-                      {post.author && post.category && <span>•</span>}
-                      {post.category && <span>{post.category.name}</span>}
-                    </div>
-
-                    <div className='flex flex-wrap gap-1.5'>
-                      {post.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag.slug} variant='outline' className='bg-background/70'>
-                          {tag.name}
+                      <div className='pointer-events-none absolute left-6 top-6'>
+                        <Badge
+                          variant={post.status === 'published' ? 'default' : 'secondary'}
+                          className='capitalize shadow-sm'
+                        >
+                          {post.status}
                         </Badge>
-                      ))}
-                      {post.tags.length > 3 && (
-                        <Badge variant='outline' className='bg-background/70'>
-                          +{post.tags.length - 3}
-                        </Badge>
-                      )}
+                      </div>
                     </div>
 
-                    <div className='flex items-center justify-between pt-1 text-xs text-muted-foreground'>
-                      <span>/{post.slug}</span>
-                      <span>
-                        {format(
-                          new Date(post.publishedAt ?? post.updatedAt),
-                          'MMM d, yyyy',
+                    <CardContent className='space-y-2 px-5 py-5'>
+                      <div className='space-y-1'>
+                        <div className='line-clamp-2 text-lg font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary'>
+                          {post.title || 'Untitled'}
+                        </div>
+                        {post.excerpt ? (
+                          <p className='line-clamp-3 text-sm leading-6 text-muted-foreground'>
+                            {post.excerpt}
+                          </p>
+                        ) : (
+                          <p className='text-sm italic text-muted-foreground'>
+                            No description added yet.
+                          </p>
                         )}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </button>
-            ))}
-          </div>
+                      </div>
+
+                      <div className='flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground'>
+                        {post.author && <span>{post.author.name}</span>}
+                        {post.author && post.category && <span>•</span>}
+                        {post.category && <span>{post.category.name}</span>}
+                      </div>
+
+                      <div className='flex flex-wrap gap-1.5'>
+                        {post.tags.slice(0, 3).map((tag) => (
+                          <Badge key={tag.slug} variant='outline' className='bg-background/70'>
+                            {tag.name}
+                          </Badge>
+                        ))}
+                        {post.tags.length > 3 && (
+                          <Badge variant='outline' className='bg-background/70'>
+                            +{post.tags.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className='flex items-center justify-between pt-1 text-xs text-muted-foreground'>
+                        <span>/{post.slug}</span>
+                        <span>
+                          {format(
+                            new Date(post.publishedAt ?? post.updatedAt),
+                            'MMM d, yyyy',
+                          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
         </>
       )}
     </div>
