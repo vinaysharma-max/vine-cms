@@ -15,15 +15,13 @@ GET /api/public/v1/{API_KEY}/authors
 
 Optional pagination is available:
 
-- `page` (number): positive integer page number
-- `pageSize` (number): positive integer page size, up to `100`
-
-If you omit both pagination parameters, Vine returns the full collection.
+- `limit` (number): positive integer page size, up to `100`
+- `cursor` (string): opaque cursor returned by the previous response
 
 ## Example Request
 
 ```bash
-curl "https://vinecms.tech/api/public/v1/{API_KEY}/authors?page=1&pageSize=20"
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/authors?limit=20"
 ```
 
 ## Example Response
@@ -43,12 +41,9 @@ curl "https://vinecms.tech/api/public/v1/{API_KEY}/authors?page=1&pageSize=20"
     }
   ],
   "pagination": {
-    "page": 1,
-    "pageSize": 20,
-    "totalItems": 1,
-    "totalPages": 1,
-    "hasNextPage": false,
-    "hasPreviousPage": false
+    "limit": 20,
+    "nextCursor": null,
+    "hasMore": false
   }
 }
 ```
@@ -75,14 +70,14 @@ Each author object contains:
 
 ```js
 const response = await fetch(
-  'https://vinecms.tech/api/public/v1/{API_KEY}/authors?page=1&pageSize=20'
+  'https://vinecms.tech/api/public/v1/{API_KEY}/authors?limit=20'
 );
 const data = await response.json();
 
 const primaryAuthor = data.authors[0];
 console.log(primaryAuthor.name);
 console.log(primaryAuthor.socialLinks);
-console.log(data.pagination.totalItems);
+console.log(data.pagination.nextCursor);
 ```
 
 ## Related Endpoints

@@ -68,7 +68,9 @@ export default defineSchema({
     about: v.optional(v.string()),
     socialLinks: v.optional(v.any()),
     createdAt: v.number(),
-  }).index("by_workspace_id", ["workspaceId"]),
+  })
+    .index("by_workspace_id", ["workspaceId"])
+    .index("by_workspace_id_and_name", ["workspaceId", "name"]),
   categories: defineTable({
     workspaceId: v.id("workspaces"),
     name: v.string(),
@@ -76,6 +78,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_workspace_id", ["workspaceId"])
+    .index("by_workspace_id_and_name", ["workspaceId", "name"])
     .index("by_workspace_id_and_slug", ["workspaceId", "slug"]),
   tags: defineTable({
     workspaceId: v.id("workspaces"),
@@ -84,6 +87,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_workspace_id", ["workspaceId"])
+    .index("by_workspace_id_and_name", ["workspaceId", "name"])
     .index("by_workspace_id_and_slug", ["workspaceId", "slug"]),
   posts: defineTable({
     workspaceId: v.id("workspaces"),
@@ -101,6 +105,7 @@ export default defineSchema({
     publishedAt: v.optional(v.number()),
   })
     .index("by_workspace_id", ["workspaceId"])
+    .index("by_workspace_id_and_status_and_published_at", ["workspaceId", "status", "publishedAt"])
     .index("by_workspace_id_and_slug", ["workspaceId", "slug"]),
   postBodies: defineTable({
     postId: v.id("posts"),

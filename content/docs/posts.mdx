@@ -19,8 +19,8 @@ GET https://vinecms.tech/api/public/v1/{API_KEY}/posts
 
 Optional pagination is available:
 
-- `page` (number): positive integer page number
-- `pageSize` (number): positive integer page size, up to `100`
+- `limit` (number): positive integer page size, up to `100`
+- `cursor` (string): opaque cursor returned by the previous response
 
 The current shipped API does not yet support:
 
@@ -29,12 +29,10 @@ The current shipped API does not yet support:
 - author filtering
 - search
 
-If you omit both pagination parameters, Vine preserves the current `v1` behavior and returns the full collection.
-
 ### Example Request
 
 ```bash
-curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=1&pageSize=10"
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?limit=10"
 ```
 
 ### Example Response
@@ -58,12 +56,9 @@ curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=1&pageSize=10"
     }
   ],
   "pagination": {
-    "page": 1,
-    "pageSize": 10,
-    "totalItems": 1,
-    "totalPages": 1,
-    "hasNextPage": false,
-    "hasPreviousPage": false
+    "limit": 10,
+    "nextCursor": "opaque_cursor_token",
+    "hasMore": true
   }
 }
 ```
@@ -83,12 +78,9 @@ Each post in the list response contains:
 - `author` (object | null): author summary with `id` and `name`
 - `category` (object | null): category summary with `slug` and `name`
 - `tags` (array): tag summaries with `slug` and `name`
-- `pagination.page` (number): current page number
-- `pagination.pageSize` (number): requested page size
-- `pagination.totalItems` (number): total public posts available
-- `pagination.totalPages` (number): total available pages for the current `pageSize`
-- `pagination.hasNextPage` (boolean): whether another page exists after this one
-- `pagination.hasPreviousPage` (boolean): whether a previous page exists before this one
+- `pagination.limit` (number): requested page size
+- `pagination.nextCursor` (string | null): cursor for the next page, or `null` when exhausted
+- `pagination.hasMore` (boolean): whether another page is available
 
 ### Use Cases
 
@@ -193,7 +185,7 @@ Drafts are excluded from public responses.
 
 ```js
 const response = await fetch(
-  'https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=1&pageSize=10'
+  'https://vinecms.tech/api/public/v1/{API_KEY}/posts?limit=10'
 );
 const data = await response.json();
 
@@ -201,7 +193,13 @@ for (const post of data.posts) {
   console.log(post.title, post.readingTimeMinutes);
 }
 
-console.log(data.pagination.totalPages);
+if (data.pagination.hasMore) {
+  const nextResponse = await fetch(
+    `https://vinecms.tech/api/public/v1/{API_KEY}/posts?limit=10&cursor=${encodeURIComponent(data.pagination.nextCursor)}`
+  );
+  const nextPage = await nextResponse.json();
+  console.log(nextPage.posts.length);
+}
 ```
 
 ### Fetching A Single Post

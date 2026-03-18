@@ -127,7 +127,7 @@ If you are calling an older route format, update it.
 ```json
 {
   "ok": false,
-  "error": "Invalid page query parameter. Expected a positive integer."
+  "error": "Invalid limit query parameter. Expected a positive integer."
 }
 ```
 
@@ -136,7 +136,7 @@ or
 ```json
 {
   "ok": false,
-  "error": "Invalid pageSize query parameter. Maximum allowed value is 100."
+  "error": "Invalid limit query parameter. Maximum allowed value is 100."
 }
 ```
 
@@ -144,13 +144,23 @@ or
 
 **Rules:**
 
-- `page` must be a positive integer
-- `pageSize` must be a positive integer
-- `pageSize` cannot be greater than `100`
+- `limit` must be a positive integer
+- `limit` cannot be greater than `100`
+
+## Old Page Parameters
+
+If you still send `page` or `pageSize`, the API returns:
+
+```json
+{
+  "ok": false,
+  "error": "The page and pageSize query parameters are no longer supported. Use cursor and limit instead."
+}
+```
 
 ## Expecting Filters
 
-The current shipped API supports pagination with `page` and `pageSize`, but it does not yet support:
+The current shipped API supports cursor-based pagination with `limit` and `cursor`, but it does not yet support:
 
 - category filtering
 - tag filtering
@@ -160,7 +170,8 @@ The current shipped API supports pagination with `page` and `pageSize`, but it d
 If you need paging, use routes like:
 
 ```bash
-curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=2&pageSize=10"
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?limit=10"
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?limit=10&cursor={NEXT_CURSOR}"
 ```
 
 ## Health Checks

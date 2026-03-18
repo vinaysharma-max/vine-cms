@@ -60,13 +60,13 @@ You can call the API from:
 Here's a simple example using cURL:
 
 ```bash
-curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=1&pageSize=20"
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?limit=20"
 ```
 or using JavaScript:
 
 ```js
 const response = await fetch(
-  'https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=1&pageSize=20'
+  'https://vinecms.tech/api/public/v1/{API_KEY}/posts?limit=20'
 );
 
 if (!response.ok) {
@@ -86,12 +86,9 @@ console.log(data.pagination);
   "ok": true,
   "posts": [],
   "pagination": {
-    "page": 1,
-    "pageSize": 20,
-    "totalItems": 0,
-    "totalPages": 0,
-    "hasNextPage": false,
-    "hasPreviousPage": false
+    "limit": 20,
+    "nextCursor": null,
+    "hasMore": false
   }
 }
 ```
@@ -100,16 +97,20 @@ console.log(data.pagination);
 
 Collection endpoints support optional query parameters:
 
-- `page`: positive integer page number
-- `pageSize`: positive integer page size, up to `100`
+- `limit`: positive integer page size, up to `100`
+- `cursor`: opaque cursor returned by the previous response
 
 Example:
 
 ```bash
-curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?page=2&pageSize=10"
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?limit=10"
 ```
 
-If you omit both parameters, Vine preserves the current `v1` behavior and returns the full collection while still including pagination metadata in the response.
+To fetch the next page, send the returned `nextCursor` back:
+
+```bash
+curl "https://vinecms.tech/api/public/v1/{API_KEY}/posts?limit=10&cursor={NEXT_CURSOR}"
+```
 
 ## Response Format
 

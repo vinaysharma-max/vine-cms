@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { v } from 'convex/values';
+import { paginationOptsValidator } from 'convex/server';
 import { mutation, query } from './_generated/server';
 import { estimateReadingTime } from '../lib/reading-time';
-import { paginatePublicApiItems } from '../lib/public-api-pagination';
+import { toPublicApiCursorPagination } from '../lib/public-api-pagination';
 
 async function sha256(input: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
@@ -68,8 +69,8 @@ async function getPublicPostListItem(ctx: any, post: any) {
     postTags.map(async (postTag: any) => {
       const tag = await ctx.db
         .query('tags')
-        .withIndex('by_workspace_id_and_tag_slug', (q: any) =>
-          q.eq('workspaceId', post.workspaceId).eq('tagSlug', postTag.tagSlug),
+        .withIndex('by_workspace_id_and_slug', (q: any) =>
+          q.eq('workspaceId', post.workspaceId).eq('slug', postTag.tagSlug),
         )
         .unique();
 
@@ -136,8 +137,7 @@ async function getPublicPostDetail(ctx: any, post: any) {
 export const listPosts = query({
   args: {
     apiKey: v.string(),
-    page: v.optional(v.number()),
-    pageSize: v.optional(v.number()),
+    paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     const access = await validateApiKey(ctx, args.apiKey);
@@ -147,25 +147,20 @@ export const listPosts = query({
 
     const posts = await ctx.db
       .query('posts')
-      .withIndex('by_workspace_id', (q: any) => q.eq('workspaceId', access.workspace._id))
-      .collect();
-
-    const publicPosts = posts.filter(isPublicPost);
-    const items = await Promise.all(publicPosts.map((post) => getPublicPostListItem(ctx, post)));
-
-    const sortedPosts = items.sort((a, b) => {
-      const aDate = a.publishedAt ?? a.updatedAt;
-      const bDate = b.publishedAt ?? b.updatedAt;
-      return +new Date(bDate) - +new Date(aDate);
-    });
-    const paginatedPosts = paginatePublicApiItems(sortedPosts, {
-      page: args.page,
-      pageSize: args.pageSize,
-    });
+      .withIndex('by_workspace_id_and_status_and_published_at', (q: any) =>
+        q.eq('workspaceId', access.workspace._id).eq('status', 'published'),
+      )
+      .order('desc')
+      .paginate(args.paginationOpts);
+    const items = await Promise.all(posts.page.map((post) => getPublicPostListItem(ctx, post)));
 
     return {
-      posts: paginatedPosts.items,
-      pagination: paginatedPosts.pagination,
+      posts: items,
+      pagination: toPublicApiCursorPagination({
+        limit: args.paginationOpts.numItems,
+        continueCursor: posts.continueCursor,
+        isDone: posts.isDone,
+      }),
     };
   },
 });
@@ -197,8 +192,7 @@ export const getPost = query({
 export const listAuthors = query({
   args: {
     apiKey: v.string(),
-    page: v.optional(v.number()),
-    pageSize: v.optional(v.number()),
+    paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     const access = await validateApiKey(ctx, args.apiKey);
@@ -208,26 +202,23 @@ export const listAuthors = query({
 
     const authors = await ctx.db
       .query('authors')
-      .withIndex('by_workspace_id', (q: any) => q.eq('workspaceId', access.workspace._id))
-      .collect();
+      .withIndex('by_workspace_id_and_name', (q: any) => q.eq('workspaceId', access.workspace._id))
+      .order('asc')
+      .paginate(args.paginationOpts);
 
-    const sortedAuthors = authors
-      .map((author) => ({
+    return {
+      authors: authors.page.map((author) => ({
         id: author._id,
         name: author.name,
         email: author.email,
         about: author.about ?? '',
         socialLinks: (author.socialLinks as Record<string, string> | undefined) ?? {},
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    const paginatedAuthors = paginatePublicApiItems(sortedAuthors, {
-      page: args.page,
-      pageSize: args.pageSize,
-    });
-
-    return {
-      authors: paginatedAuthors.items,
-      pagination: paginatedAuthors.pagination,
+      })),
+      pagination: toPublicApiCursorPagination({
+        limit: args.paginationOpts.numItems,
+        continueCursor: authors.continueCursor,
+        isDone: authors.isDone,
+      }),
     };
   },
 });
@@ -235,8 +226,7 @@ export const listAuthors = query({
 export const listCategories = query({
   args: {
     apiKey: v.string(),
-    page: v.optional(v.number()),
-    pageSize: v.optional(v.number()),
+    paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     const access = await validateApiKey(ctx, args.apiKey);
@@ -246,24 +236,21 @@ export const listCategories = query({
 
     const categories = await ctx.db
       .query('categories')
-      .withIndex('by_workspace_id', (q: any) => q.eq('workspaceId', access.workspace._id))
-      .collect();
+      .withIndex('by_workspace_id_and_name', (q: any) => q.eq('workspaceId', access.workspace._id))
+      .order('asc')
+      .paginate(args.paginationOpts);
 
-    const sortedCategories = categories
-      .map((category) => ({
+    return {
+      categories: categories.page.map((category) => ({
         id: category._id,
         name: category.name,
         slug: category.slug,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    const paginatedCategories = paginatePublicApiItems(sortedCategories, {
-      page: args.page,
-      pageSize: args.pageSize,
-    });
-
-    return {
-      categories: paginatedCategories.items,
-      pagination: paginatedCategories.pagination,
+      })),
+      pagination: toPublicApiCursorPagination({
+        limit: args.paginationOpts.numItems,
+        continueCursor: categories.continueCursor,
+        isDone: categories.isDone,
+      }),
     };
   },
 });
@@ -271,8 +258,7 @@ export const listCategories = query({
 export const listTags = query({
   args: {
     apiKey: v.string(),
-    page: v.optional(v.number()),
-    pageSize: v.optional(v.number()),
+    paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     const access = await validateApiKey(ctx, args.apiKey);
@@ -282,24 +268,21 @@ export const listTags = query({
 
     const tags = await ctx.db
       .query('tags')
-      .withIndex('by_workspace_id', (q: any) => q.eq('workspaceId', access.workspace._id))
-      .collect();
+      .withIndex('by_workspace_id_and_name', (q: any) => q.eq('workspaceId', access.workspace._id))
+      .order('asc')
+      .paginate(args.paginationOpts);
 
-    const sortedTags = tags
-      .map((tag) => ({
+    return {
+      tags: tags.page.map((tag) => ({
         id: tag._id,
         name: tag.name,
         slug: tag.slug,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    const paginatedTags = paginatePublicApiItems(sortedTags, {
-      page: args.page,
-      pageSize: args.pageSize,
-    });
-
-    return {
-      tags: paginatedTags.items,
-      pagination: paginatedTags.pagination,
+      })),
+      pagination: toPublicApiCursorPagination({
+        limit: args.paginationOpts.numItems,
+        continueCursor: tags.continueCursor,
+        isDone: tags.isDone,
+      }),
     };
   },
 });

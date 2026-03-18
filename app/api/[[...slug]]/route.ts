@@ -2,12 +2,13 @@ import { Elysia } from 'elysia';
 import { fetchMutation, fetchQuery } from 'convex/nextjs';
 import { makeFunctionReference } from 'convex/server';
 import {
-  MAX_PUBLIC_API_PAGE_SIZE,
-  type PublicApiPagination,
+  DEFAULT_PUBLIC_API_LIMIT,
+  MAX_PUBLIC_API_LIMIT,
+  type PublicApiCursorPagination,
 } from '@/lib/public-api-pagination';
 
 type PaginatedCollectionResponse = {
-  pagination: PublicApiPagination;
+  pagination: PublicApiCursorPagination;
 };
 
 type PublicPostsResponse = ({
@@ -80,7 +81,7 @@ type PublicStatsResponse = {
 
 const listPublicPosts = makeFunctionReference<
   'query',
-  { apiKey: string; page?: number; pageSize?: number },
+  { apiKey: string; paginationOpts: { numItems: number; cursor: string | null } },
   PublicPostsResponse
 >('publicApi:listPosts');
 
@@ -92,19 +93,19 @@ const getPublicPost = makeFunctionReference<
 
 const listPublicAuthors = makeFunctionReference<
   'query',
-  { apiKey: string; page?: number; pageSize?: number },
+  { apiKey: string; paginationOpts: { numItems: number; cursor: string | null } },
   PublicAuthorsResponse
 >('publicApi:listAuthors');
 
 const listPublicCategories = makeFunctionReference<
   'query',
-  { apiKey: string; page?: number; pageSize?: number },
+  { apiKey: string; paginationOpts: { numItems: number; cursor: string | null } },
   PublicCategoriesResponse
 >('publicApi:listCategories');
 
 const listPublicTags = makeFunctionReference<
   'query',
-  { apiKey: string; page?: number; pageSize?: number },
+  { apiKey: string; paginationOpts: { numItems: number; cursor: string | null } },
   PublicTagsResponse
 >('publicApi:listTags');
 
@@ -131,7 +132,7 @@ function getRequestIp(request: Request) {
 
 function parsePositiveIntegerQueryParam(
   value: string | null,
-  name: 'page' | 'pageSize',
+  name: 'limit',
 ): { value?: number; error?: string } {
   if (value === null || value.trim() === '') {
     return {};
@@ -144,9 +145,9 @@ function parsePositiveIntegerQueryParam(
     };
   }
 
-  if (name === 'pageSize' && parsed > MAX_PUBLIC_API_PAGE_SIZE) {
+  if (parsed > MAX_PUBLIC_API_LIMIT) {
     return {
-      error: `Invalid pageSize query parameter. Maximum allowed value is ${MAX_PUBLIC_API_PAGE_SIZE}.`,
+      error: `Invalid ${name} query parameter. Maximum allowed value is ${MAX_PUBLIC_API_LIMIT}.`,
     };
   }
 
@@ -155,19 +156,20 @@ function parsePositiveIntegerQueryParam(
 
 function getPaginationArgs(request: Request) {
   const url = new URL(request.url);
-  const page = parsePositiveIntegerQueryParam(url.searchParams.get('page'), 'page');
-  if (page.error) {
-    return { error: page.error };
+  if (url.searchParams.has('page') || url.searchParams.has('pageSize')) {
+    return {
+      error: 'The page and pageSize query parameters are no longer supported. Use cursor and limit instead.',
+    };
   }
 
-  const pageSize = parsePositiveIntegerQueryParam(url.searchParams.get('pageSize'), 'pageSize');
-  if (pageSize.error) {
-    return { error: pageSize.error };
+  const limit = parsePositiveIntegerQueryParam(url.searchParams.get('limit'), 'limit');
+  if (limit.error) {
+    return { error: limit.error };
   }
 
   return {
-    page: page.value,
-    pageSize: pageSize.value,
+    cursor: url.searchParams.get('cursor')?.trim() || null,
+    limit: limit.value ?? DEFAULT_PUBLIC_API_LIMIT,
   };
 }
 
@@ -196,8 +198,10 @@ const api = new Elysia({ prefix: '/api' })
 
     const result = await fetchQuery(listPublicPosts, {
       apiKey,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
+      paginationOpts: {
+        numItems: pagination.limit,
+        cursor: pagination.cursor,
+      },
     });
 
     if (!result) {
@@ -263,8 +267,10 @@ const api = new Elysia({ prefix: '/api' })
 
     const result = await fetchQuery(listPublicAuthors, {
       apiKey,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
+      paginationOpts: {
+        numItems: pagination.limit,
+        cursor: pagination.cursor,
+      },
     });
     if (!result) {
       set.status = 401;
@@ -297,8 +303,10 @@ const api = new Elysia({ prefix: '/api' })
 
     const result = await fetchQuery(listPublicCategories, {
       apiKey,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
+      paginationOpts: {
+        numItems: pagination.limit,
+        cursor: pagination.cursor,
+      },
     });
     if (!result) {
       set.status = 401;
@@ -331,8 +339,10 @@ const api = new Elysia({ prefix: '/api' })
 
     const result = await fetchQuery(listPublicTags, {
       apiKey,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
+      paginationOpts: {
+        numItems: pagination.limit,
+        cursor: pagination.cursor,
+      },
     });
     if (!result) {
       set.status = 401;
