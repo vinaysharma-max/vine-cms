@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { parseAsStringLiteral, useQueryState } from 'nuqs';
 import {
   Dialog,
   DialogContent,
@@ -51,7 +52,14 @@ export default function PostsManager() {
   const [pendingDeleteSlugs, setPendingDeleteSlugs] = useState<string[]>([]);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<PostsViewMode>('list');
+  const [viewMode, setViewMode] = useQueryState(
+    'view',
+    parseAsStringLiteral<PostsViewMode>(['list', 'grid'])
+      .withDefault('list')
+      .withOptions({
+        history: 'push',
+      }),
+  );
   const [gridSearch, setGridSearch] = useState('');
 
   const handleNewPost = () => {
@@ -186,7 +194,7 @@ export default function PostsManager() {
                     variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                     size='sm'
                     className='h-8 rounded-lg px-3'
-                    onClick={() => setViewMode('list')}
+                    onClick={() => void setViewMode('list')}
                   >
                     <List className='mr-2 h-4 w-4' />
                     List
@@ -196,7 +204,7 @@ export default function PostsManager() {
                     variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                     size='sm'
                     className='h-8 rounded-lg px-3'
-                    onClick={() => setViewMode('grid')}
+                    onClick={() => void setViewMode('grid')}
                   >
                     <LayoutGrid className='mr-2 h-4 w-4' />
                     Grid

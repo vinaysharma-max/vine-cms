@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { ConvexReactClient } from "convex/react";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { InviteAcceptanceBootstrap } from "@/components/Member/InviteAcceptanceBootstrap";
 
 export const convex = new ConvexReactClient(
@@ -14,11 +15,13 @@ export const convex = new ConvexReactClient(
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <ConvexAuthNextjsProvider client={convex}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        {children}
-        <InviteAcceptanceBootstrap />
-        <Toaster position="top-right" richColors />
-      </ThemeProvider>
+      <NuqsAdapter>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {children}
+          <InviteAcceptanceBootstrap />
+          <Toaster position="top-right" richColors />
+        </ThemeProvider>
+      </NuqsAdapter>
     </ConvexAuthNextjsProvider>
   );
 }
