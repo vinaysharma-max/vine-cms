@@ -28,6 +28,7 @@ import { useEditorContext } from '@/components/editor/editor-context';
 import type { PostMetadata } from '@/types/editor';
 import { getWorkspacePath } from '@/lib/utils';
 import { useEditorDraft } from '@/hooks/useEditorPersistence';
+import { hasMeaningfulContent } from '@/components/editor/content-utils';
 
 export default function EditPostPage() {
   const router = useRouter();
@@ -62,7 +63,17 @@ export default function EditPostPage() {
       return;
     }
 
-    const source = draft
+    const postUpdatedAt = post ? new Date(post.updatedAt).getTime() : 0;
+    const isDraftNewerThanPost = Boolean(
+      draft && (!post || draft.updatedAt > postUpdatedAt),
+    );
+    const shouldUseDraftContent = Boolean(
+      draft &&
+        isDraftNewerThanPost &&
+        hasMeaningfulContent(draft.contentJson),
+    );
+
+    const source = isDraftNewerThanPost && draft
       ? {
           title: draft.metadata.title,
           slug: draft.metadata.slug,
@@ -77,7 +88,9 @@ export default function EditPostPage() {
             ? new Date(draft.metadata.publishedAt).toISOString()
             : null,
           status: draft.metadata.status,
-          contentJson: draft.contentJson,
+          contentJson: shouldUseDraftContent
+            ? draft.contentJson
+            : (post?.contentJson ?? null),
         }
       : post
         ? {

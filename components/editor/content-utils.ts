@@ -36,34 +36,34 @@ export function hasTextContent(editor: Editor): boolean {
   return checkNode(json);
 }
 
-export function isEditorEmpty(editor: Editor): boolean {
-  const json = editor.getJSON();
+export function hasMeaningfulContent(
+  content: ProseMirrorJSON | null | undefined,
+): boolean {
+  if (!content) {
+    return false;
+  }
 
-  // Check if document is empty or only has empty paragraph
-  if (!json.content || json.content.length === 0) {
+  if (
+    content.type === 'text' &&
+    content.text &&
+    (content.text as string).trim().length > 0
+  ) {
     return true;
   }
 
-  // Check if all content nodes are empty
-  const hasContent = json.content.some((node) => {
-    // If it's a paragraph, check if it has text content
-    if (node.type === 'paragraph') {
-      if (!node.content || node.content.length === 0) {
-        return false;
-      }
-      return node.content.some(
-        (child: ProseMirrorJSON) =>
-          (child.type === 'text' &&
-            child.text &&
-            (child.text as string).trim().length > 0) ||
-          child.type === 'image',
-      );
-    }
-    // For other node types, consider them as having content
+  if (content.type === 'image') {
     return true;
-  });
+  }
 
-  return !hasContent;
+  if (content.content && Array.isArray(content.content)) {
+    return content.content.some((child) => hasMeaningfulContent(child));
+  }
+
+  return content.type !== 'doc' && content.type !== 'paragraph';
+}
+
+export function isEditorEmpty(editor: Editor): boolean {
+  return !hasMeaningfulContent(editor.getJSON());
 }
 
 /**

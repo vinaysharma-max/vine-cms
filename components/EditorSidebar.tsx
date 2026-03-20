@@ -368,7 +368,9 @@ export function EditorSidebar() {
       return;
     }
 
-    void clearDraftMutation.mutateAsync();
+    return clearDraftMutation.mutateAsync().catch((error) => {
+      console.error('Failed to clear editor draft', error);
+    });
   }, [clearDraftMutation, workspaceSlug]);
 
   const handleAutosaveToggle = useCallback(
@@ -563,6 +565,9 @@ export function EditorSidebar() {
   ]);
 
   const handleSave = useCallback(async () => {
+    clearAutosaveTimer();
+    clearDraftSaveTimer();
+
     const prepared = await prepareSaveData('manual');
     if (!prepared) {
       return;
@@ -570,62 +575,66 @@ export function EditorSidebar() {
 
     const { formValues, baseData, contentJsonSnapshot } = prepared;
 
-    if (isEditing && postSlug) {
-      const nextPost = await updatePostMutation.mutateAsync(
-        {
+    try {
+      if (isEditing && postSlug) {
+        const nextPost = await updatePostMutation.mutateAsync(
+          {
+            ...baseData,
+            slug: formValues.slug,
+            publishedAt: formValues.publishedAt || new Date(),
+          },
+          {
+            postSlug,
+          },
+        );
+
+        autosavePostSlugRef.current = nextPost.slug;
+        applySavedBaseline(formValues, contentJsonSnapshot);
+        await clearCurrentDraft();
+
+        if (nextPost.slug !== postSlug) {
+          startTransition(() => {
+            router.replace(getWorkspacePath(workspaceSlug, `editor/${nextPost.slug}`));
+          });
+        }
+      } else {
+        const postData = {
           ...baseData,
           slug: formValues.slug,
           publishedAt: formValues.publishedAt || new Date(),
-        },
-        {
-          postSlug,
-        },
-      );
+        } as CreatePostData & { slug: string; publishedAt: Date };
 
-      autosavePostSlugRef.current = nextPost.slug;
-      applySavedBaseline(formValues, contentJsonSnapshot);
-      clearCurrentDraft();
+        await createPostMutation.mutateAsync(postData);
 
-      if (nextPost.slug !== postSlug) {
-        startTransition(() => {
-          router.replace(getWorkspacePath(workspaceSlug, `editor/${nextPost.slug}`));
-        });
+        const editorInstance = editorRef.current?.editor;
+        if (editorInstance) {
+          editorInstance.commands.setContent('<p></p>');
+        }
+
+        await clearCurrentDraft();
+        setMetadata((prev) => ({
+          ...prev,
+          title: '',
+          slug: '',
+          excerpt: '',
+          thumbnailMediaId: null,
+          authorId: undefined,
+          categorySlug: undefined,
+          tagSlugs: [],
+          publishedAt: new Date(),
+          status: 'draft',
+        }));
+
+        router.push(getWorkspacePath(workspaceSlug, 'posts'));
       }
-    } else {
-      const postData = {
-        ...baseData,
-        slug: formValues.slug,
-        publishedAt: formValues.publishedAt || new Date(),
-      } as CreatePostData & { slug: string; publishedAt: Date };
-
-      createPostMutation.mutate(postData, {
-        onSuccess: () => {
-          const editorInstance = editorRef.current?.editor;
-          if (editorInstance) {
-            editorInstance.commands.setContent('<p></p>');
-          }
-
-          clearCurrentDraft();
-          setMetadata((prev) => ({
-            ...prev,
-            title: '',
-            slug: '',
-            excerpt: '',
-            thumbnailMediaId: null,
-            authorId: undefined,
-            categorySlug: undefined,
-            tagSlugs: [],
-            publishedAt: new Date(),
-            status: 'draft',
-          }));
-
-          router.push(getWorkspacePath(workspaceSlug, 'posts'));
-        },
-      });
+    } catch {
+      return;
     }
   }, [
     applySavedBaseline,
+    clearAutosaveTimer,
     clearCurrentDraft,
+    clearDraftSaveTimer,
     createPostMutation,
     editorRef,
     isEditing,
