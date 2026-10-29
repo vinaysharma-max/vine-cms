@@ -3,6 +3,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { requireWorkspaceMembership } from './lib/workspace';
+import { internal } from './_generated/api';
 
 async function getWorkspacePostBySlug(ctx: any, workspaceId: string, postSlug: string) {
   return await ctx.db
@@ -258,7 +259,7 @@ export const create = mutation({
     if (!post) {
       throw new Error('Failed to create post');
     }
-
+    await ctx.scheduler.runAfter(0, internal.revalidate.notifyBlogChanged, {});
     return await hydratePost(ctx, post);
   },
 });
@@ -356,7 +357,7 @@ export const update = mutation({
     if (!updated) {
       throw new Error('Post not found');
     }
-
+    await ctx.scheduler.runAfter(0, internal.revalidate.notifyBlogChanged, {});
     return await hydratePost(ctx, updated);
   },
 });
@@ -394,6 +395,7 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(post._id);
+    await ctx.scheduler.runAfter(0, internal.revalidate.notifyBlogChanged, {});
     return { success: true };
   },
 });

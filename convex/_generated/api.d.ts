@@ -21,6 +21,7 @@ import type * as media from "../media.js";
 import type * as members from "../members.js";
 import type * as posts from "../posts.js";
 import type * as publicApi from "../publicApi.js";
+import type * as revalidate from "../revalidate.js";
 import type * as tags from "../tags.js";
 import type * as users from "../users.js";
 import type * as workspaces from "../workspaces.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   members: typeof members;
   posts: typeof posts;
   publicApi: typeof publicApi;
+  revalidate: typeof revalidate;
   tags: typeof tags;
   users: typeof users;
   workspaces: typeof workspaces;
