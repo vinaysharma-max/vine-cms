@@ -22,6 +22,30 @@ async function getAspectRatio(file: File) {
   });
 }
 
+const MAX_IMAGE_WIDTH = 1600;
+const WEBP_QUALITY = 0.82;
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const KEEP_ORIGINAL_TYPES = new Set(['image/gif', 'image/svg+xml']);
+
+async function compressImage(file: File): Promise<File> {
+  if (KEEP_ORIGINAL_TYPES.has(file.type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_IMAGE_WIDTH / bitmap.width);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', WEBP_QUALITY));
+    if (!blob || blob.type !== 'image/webp' || blob.size >= file.size) return file;
+    const name = file.name.replace(/\.[^.]+$/, '') + '.webp';
+    return new File([blob], name, { type: 'image/webp', lastModified: file.lastModified });
+  } catch {
+    return file;
+  }
+}
+
 export function useMediaUpload(workspaceSlug: string) {
   const generateUploadUrl = useMutation(api.media.generateUploadUrl);
   const confirmUpload = useMutation(api.media.confirmUpload);
@@ -30,19 +54,15 @@ export function useMediaUpload(workspaceSlug: string) {
   const [uploadStage, setUploadStage] = useState<'idle' | 'generating' | 'uploading' | 'confirming'>('idle');
 
   const uploadImageAsync = async (
-    file: File,
+    original: File,
     onProgress?: (progress: number, stage: string) => void,
   ) => {
     if (!workspaceSlug) {
       throw new Error('Workspace not found');
     }
 
-    if (!file.type.startsWith('image/')) {
+    if (!original.type.startsWith('image/')) {
       throw new Error('File must be an image');
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error('File size must be less than 5MB');
     }
 
     setIsPending(true);
@@ -51,6 +71,10 @@ export function useMediaUpload(workspaceSlug: string) {
     onProgress?.(0, 'generating');
 
     try {
+      const file = await compressImage(original);
+      if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error('File size must be less than 5MB');
+      }
       const aspectRatio = await getAspectRatio(file);
       const { uploadUrl } = await generateUploadUrl({ workspaceSlug });
 
