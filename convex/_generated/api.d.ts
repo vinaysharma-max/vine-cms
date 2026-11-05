@@ -18,6 +18,7 @@ import type * as editorPreferences from "../editorPreferences.js";
 import type * as http from "../http.js";
 import type * as lib_workspace from "../lib/workspace.js";
 import type * as media from "../media.js";
+import type * as mediaMigration from "../mediaMigration.js";
 import type * as members from "../members.js";
 import type * as posts from "../posts.js";
 import type * as publicApi from "../publicApi.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/workspace": typeof lib_workspace;
   media: typeof media;
+  mediaMigration: typeof mediaMigration;
   members: typeof members;
   posts: typeof posts;
   publicApi: typeof publicApi;

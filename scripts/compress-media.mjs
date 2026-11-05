@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import sharp from 'sharp';
 
 const APPLY = process.argv.includes('--apply');
+const DELETE_ORIGINALS = process.argv.includes('--delete-originals');
 const MAX_WIDTH = 1600;
 const QUALITY = 82;
 const MIN_SAVING = 0.2;
@@ -29,16 +30,30 @@ const kb = (bytes) => `${(bytes / 1024).toFixed(0)} KB`;
 const mb = (bytes) => `${(bytes / 1048576).toFixed(1)} MB`;
 
 mkdirSync(WORK_DIR, { recursive: true });
+const MANIFEST_FILE = join(WORK_DIR, 'manifest.json');
 const state = existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, 'utf8')) : { swapped: [] };
 const alreadySwapped = new Set(state.swapped.map((row) => row.mediaId));
+
+if (DELETE_ORIGINALS) {
+  const pending = state.swapped.filter((row) => !row.deleted);
+  for (let start = 0; start < pending.length; start += 50) {
+    const batch = pending.slice(start, start + 50);
+    run('deleteStorageFiles', { storageIds: batch.map((row) => row.oldStorageId) });
+    for (const row of batch) row.deleted = true;
+    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+  }
+  console.log(`Deleted originals: ${pending.length}`);
+  process.exit(0);
+}
 
 const media = run('listMedia');
 console.log(`Media records: ${media.length}`);
 
-const candidates = [];
+const manifest = APPLY && existsSync(MANIFEST_FILE) ? JSON.parse(readFileSync(MANIFEST_FILE, 'utf8')) : null;
+const candidates = manifest ? manifest.filter((row) => !alreadySwapped.has(row.mediaId) && existsSync(row.file)) : [];
 let before = 0;
 let after = 0;
-for (const record of media) {
+for (const record of manifest ? [] : media) {
   if (alreadySwapped.has(record.mediaId) || !record.url || SKIP_TYPES.has(record.contentType)) continue;
   const response = await fetch(record.url);
   if (!response.ok) {
@@ -60,9 +75,13 @@ for (const record of media) {
   console.log(`${record.mediaId} ${meta.width}x${meta.height} ${kb(input.length)} -> ${kb(output.length)}`);
 }
 
-console.log(`\nTo compress: ${candidates.length} images, ${mb(before)} -> ${mb(after)}`);
+if (manifest) console.log(`\nUsing ${candidates.length} compressed files from the dry run`);
+else {
+  writeFileSync(MANIFEST_FILE, JSON.stringify(candidates, null, 2));
+  console.log(`\nTo compress: ${candidates.length} images, ${mb(before)} -> ${mb(after)}`);
+}
 if (!APPLY) {
-  console.log('Dry run only. Re-run with --apply to upload, relink and delete the originals.');
+  console.log('Dry run only. Re-run with --apply to upload and relink; --delete-originals removes the old files afterwards.');
   process.exit(0);
 }
 
@@ -107,12 +126,4 @@ for (const table of ['postBodies', 'editorDrafts']) {
   } while (cursor);
   console.log(`Rewrote ${table}: ${changed}`);
 }
-
-const pending = state.swapped.filter((row) => !row.deleted);
-for (let start = 0; start < pending.length; start += 50) {
-  const batch = pending.slice(start, start + 50);
-  run('deleteStorageFiles', { storageIds: batch.map((row) => row.oldStorageId) });
-  for (const row of batch) row.deleted = true;
-  writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
-}
-console.log(`Deleted originals: ${pending.length}`);
+console.log('Originals are kept. Check the blog, then run with --delete-originals.');
