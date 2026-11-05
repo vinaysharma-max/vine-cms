@@ -473,6 +473,8 @@ function MediaThumbnail({
           <img
             src={media.url}
             alt={media.filename}
+            loading='lazy'
+            decoding='async'
             className={cn(
               'w-full h-full object-cover transition-opacity duration-300',
               imageLoaded ? 'opacity-100' : 'opacity-0',

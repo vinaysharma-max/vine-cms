@@ -62,6 +62,8 @@ export function ImagePreview({
         <img
           src={src}
           alt={alt}
+          loading='lazy'
+          decoding='async'
           className={cn(
             'w-full h-full object-cover transition-opacity duration-300',
             imageLoaded ? 'opacity-100' : 'opacity-0',
